@@ -8,7 +8,7 @@ pages are:
 
 - **Programme**: overview, pedagogy, credit framework, assessment and outcomes.
 - **Curriculum Master**: semester tabs and type/assessment filters.
-- **Faculty Master**: profile cards and teaching assignments.
+- **Faculty**: profile cards with each professor's teaching load, and the Faculty Utilization table.
 - **Student Master**: KPIs, state and specialisation breakdowns, attendance flags and a
   searchable table.
 - **Handbook**: the 10-page student handbook (PDF) and the master-data workbook (XLSX).
@@ -63,5 +63,9 @@ pip install openpyxl reportlab && python data/generate.py
 | File | Contents |
 |---|---|
 | `docs/E-Logic_BBA_Student_Handbook_2026-27.pdf` | 10 pages: Dean's welcome, overview, pedagogy, credit framework, subjects (2 pages), assessment, outcomes, calendar and contacts |
-| `docs/E-Logic_BBA_Master_Data_2026-27.xlsx` | **Curriculum Master** (56 subjects: academic year, semester, subject, credits, sessions per credit, type, assessment); **Student Master** (120 students: parent, home state, date of admission, CGPA, attendance, fees, mentor…); **Faculty Master** (56 assignments: prof name, semester, subject, sessions) |
+| `docs/E-Logic_BBA_Master_Data_2026-27.xlsx` | **Curriculum Master** (56 subjects: academic year, semester, subject, credits, sessions per credit, type, assessment); **Student Master** (120 students: parent, home state, date of admission, CGPA, attendance, fees, mentor…); **Faculty Master** (20 professors: designation, area, qualification, role, email); **Faculty Utilization** (90 rows, one per section taught: semester, subject, section, students, credits, sessions; linked by Faculty ID and Subject Code) |
 | `site-data.json` | The same data, for the website's pages |
+
+In Faculty Utilization, core subjects run in sections A and B of their batch. Electives run only if
+students enrolled, in sections of up to 20. Each section consumes the subject's credits and sessions,
+so a professor's load is the sum of their rows.

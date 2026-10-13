@@ -161,13 +161,21 @@ function renderFaculty() {
       el('div', {}, el('h3', { text: f.name }), el('div', { class: 'desig', text: f.designation }))),
     el('p', { class: 'area', text: `${f.area} · ${f.qualification} · ${f.experience} years` }),
     f.role !== '-' ? el('span', { class: 'role', text: f.role }) : null,
+    el('p', { class: 'load', text: `${plural(f.sections, 'section')} · ${f.credits} credits · ${f.sessions} sessions in 2026-27` }),
     el('div', { class: 'subj' }, f.subjects.map((code) => el('span', { class: 'tag', title: subjectName(code), text: code }))))));
-  const rows = data.facultyAssignments.filter((r) => people.some((p) => p.id === r['Faculty ID']));
+  // Faculty Utilization: one row per section taught, linked to Faculty Master (Faculty ID) and Curriculum Master (Subject Code).
+  const rows = data.facultyUtilization.filter((r) => people.some((p) => p.id === r['Faculty ID']));
+  const sum = (key) => rows.reduce((n, r) => n + r[key], 0);
   $('fac-table').replaceChildren(
-    el('thead', {}, el('tr', {}, ['Prof Name', 'Semester', 'Term', 'Code', 'Subject', 'Type', 'Sections', 'Sessions', 'Status'].map((h) => el('th', { text: h })))),
+    el('thead', {}, el('tr', {}, ['Prof Name', 'Semester', 'Term', 'Code', 'Subject', 'Subject Area', 'Type', 'Section', 'Students', 'Credits', 'Sessions', 'Status']
+      .map((h) => el('th', { text: h })))),
     el('tbody', {}, rows.map((r) => el('tr', {}, el('td', { text: r['Prof Name'] }), el('td', { class: 'num', text: String(r.Semester) }),
-      el('td', { text: r.Term }), el('td', { text: r['Subject Code'] }), el('td', { text: r.Subject }), el('td', {}, tag(r.Type)),
-      el('td', { text: r.Sections }), el('td', { class: 'num', text: String(r['Sessions Assigned']) }), el('td', { text: r.Status })))));
+      el('td', { text: r.Term.split(' (')[0], title: r.Term }), el('td', { text: r['Subject Code'] }), el('td', { text: r.Subject }), el('td', { text: r['Subject Area'] }),
+      el('td', {}, tag(r.Type)), el('td', { text: r.Section }), el('td', { class: 'num', text: String(r.Students) }),
+      el('td', { class: 'num', text: String(r.Credits) }), el('td', { class: 'num', text: String(r.Sessions) }), el('td', { text: r.Status })))),
+    el('tfoot', {}, el('tr', {}, el('td', { colspan: 7, text: `Total · ${plural(rows.length, 'section')}` }), el('td'),
+      el('td', { class: 'num', text: String(sum('Students')) }), el('td', { class: 'num', text: String(sum('Credits')) }),
+      el('td', { class: 'num', text: sum('Sessions').toLocaleString('en-IN') }), el('td'))));
 }
 
 // ================================================================== students
@@ -516,7 +524,9 @@ function buildRequest(source, question, hits, history) {
   const persona = source.id === 'elogic'
     ? 'You are Ask E-Logic, the assistant for the BBA programme at E-Logic School of Business (a fictitious institution). '
       + 'You help students, parents and guardians, faculty and the Dean. The documents are the BBA Student Handbook 2026-27 (PDF) '
-      + 'and the BBA master data workbook, with the sheets Curriculum Master, Student Master and Faculty Master. '
+      + 'and the BBA master data workbook, with the sheets Curriculum Master, Student Master, Faculty Master and Faculty Utilization. '
+      + 'Faculty Utilization has one row per section taught in 2026-27; it links to Faculty Master by Faculty ID and to Curriculum Master '
+      + 'by Subject Code, and each section consumes the subject’s credits and sessions, so a professor’s load is the sum of their rows. '
     : 'You are Ask E-Logic, answering questions about files the user uploaded. The documents below are the only source: '
       + `${kb.files.map((f) => f.name).join(', ')}. Do not use anything you may know about E-Logic School of Business, its handbook `
       + 'or its data, and do not use outside knowledge; if the uploaded files don’t answer the question, say so. ';

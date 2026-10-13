@@ -3,8 +3,9 @@
 Outputs (in docs/):
   E-Logic_BBA_Student_Handbook_2026-27.pdf  10-page student handbook (overview, pedagogy,
                                              subjects, assessment, outcomes, calendar, contacts)
-  E-Logic_BBA_Master_Data_2026-27.xlsx       three masters, one sheet each:
-                                             Curriculum Master, Student Master, Faculty Master
+  E-Logic_BBA_Master_Data_2026-27.xlsx       four sheets: Curriculum Master, Student Master,
+                                             Faculty Master, and Faculty Utilization (one row per
+                                             section taught; links Faculty ID and Subject Code)
 and site-data.json, the same data for the website's pages.
 
 Run:  pip install openpyxl reportlab && python data/generate.py
@@ -193,19 +194,12 @@ def email_of(name):
     return f"{parts[0].lower()}.{parts[-1].lower()}@elogic.example.edu"
 
 
-faculty_rows = []
-for r in curriculum_rows:
-    f = FAC[r["Faculty ID"]]
-    sem = r["Semester"]
-    faculty_rows.append({
-        "Faculty ID": f[0], "Prof Name": f[1], "Designation": f[2], "Area": f[3], "Qualification": f[4],
-        "Experience (years)": f[5], "Administrative Role": f[6], "Email": email_of(f[1]),
-        "Academic Year": AY, "Term": TERM[sem], "Semester": sem, "Subject Code": r["Subject Code"],
-        "Subject": r["Subject"], "Type": r["Type"], "Credits": r["Credits"],
-        "Sections": "Elective group" if r["Type"] == E else "A and B",
-        "Sessions Assigned": r["Total Sessions"] * (1 if r["Type"] == E else 2),
-        "Status": "Ongoing" if sem % 2 else "Upcoming",
-    })
+# Faculty Master: one row per professor. What each one teaches is in Faculty Utilization (built below,
+# once student enrolments are known), linked by Faculty ID.
+faculty_rows = [{
+    "Faculty ID": f[0], "Prof Name": f[1], "Designation": f[2], "Area": f[3], "Qualification": f[4],
+    "Experience (years)": f[5], "Administrative Role": f[6], "Email": email_of(f[1]),
+} for f in FACULTY]
 
 # ------------------------------------------------------------------ students
 
@@ -301,6 +295,58 @@ for batch, year, sem in BATCHES:
             "Faculty Mentor": mentor[1], "Mentor ID": mentor[0],
         })
 
+# Year 2 students register their Semester 4 open elective in advance. A separate generator, so every
+# other student value stays exactly as before.
+prereg = random.Random(4)
+for st in student_rows:
+    if st["Current Year"] == "Year 2":
+        st["Open Elective II (Sem 4)"] = prereg.choice(OE2)
+
+# ------------------------------------------------------------------ faculty utilization
+
+# One row per section taught in 2026-27. Each section is taught (and its credits and sessions consumed)
+# separately, so a subject with two sections uses twice the faculty credits and sessions. Core subjects
+# run in the batch's own sections; an elective runs only if someone enrolled, in sections of up to 20.
+SECTION_CAP = 20
+BATCH_OF_SEM = {1: "2026-29", 2: "2026-29", 3: "2025-28", 4: "2025-28", 5: "2024-27", 6: "2024-27"}
+
+
+def enrolled(r, batch_students):
+    if r["Type"] == C:
+        return None
+    if r["Elective Group"] == "Open Elective I":
+        return [st for st in batch_students if st["Open Elective I (Sem 3)"] == r["Subject"]]
+    if r["Elective Group"] == "Open Elective II":
+        return [st for st in batch_students if st["Open Elective II (Sem 4)"] == r["Subject"]]
+    return [st for st in batch_students if st["Specialisation"] == r["Elective Group"]]
+
+
+utilization_rows = []
+not_offered = []
+for r in curriculum_rows:
+    sem = r["Semester"]
+    batch = BATCH_OF_SEM[sem]
+    batch_students = [st for st in student_rows if st["Batch"] == batch]
+    takers = enrolled(r, batch_students)
+    if takers is None:  # core: the batch's sections
+        sections = [(sec, sum(1 for st in batch_students if st["Section"] == sec)) for sec in ("A", "B")]
+    elif not takers:
+        not_offered.append(r["Subject Code"])
+        continue
+    else:  # elective: as few sections of up to 20 as possible, sized evenly
+        k = -(-len(takers) // SECTION_CAP)
+        sizes = [len(takers) // k + (1 if i < len(takers) % k else 0) for i in range(k)]
+        sections = [(chr(65 + i), n) for i, n in enumerate(sizes)]
+    f = FAC[r["Faculty ID"]]
+    for sec, n in sections:
+        utilization_rows.append({
+            "Academic Year": AY, "Term": TERM[sem], "Semester": sem, "Batch": batch,
+            "Subject Code": r["Subject Code"], "Subject": r["Subject"], "Subject Area": r["Subject Area"], "Type": r["Type"],
+            "Faculty ID": f[0], "Prof Name": f[1], "Section": sec, "Students": n,
+            "Credits": r["Credits"], "Sessions": r["Total Sessions"],
+            "Status": "Ongoing" if sem % 2 else "Upcoming",
+        })
+
 # ------------------------------------------------------------------ Excel workbook
 
 ORANGE, NAVY = "E35A1B", "16233F"
@@ -334,6 +380,7 @@ ws.title = "Curriculum Master"
 write_sheet(ws, curriculum_rows)
 write_sheet(wb.create_sheet("Student Master"), student_rows)
 write_sheet(wb.create_sheet("Faculty Master"), faculty_rows)
+write_sheet(wb.create_sheet("Faculty Utilization"), utilization_rows)
 for ws in wb.worksheets:
     ws.sheet_properties.tabColor = ORANGE
 wb.save(MASTERS)
@@ -827,17 +874,21 @@ site = {
     "curriculum": curriculum_rows,
     "faculty": [{"id": f[0], "name": f[1], "designation": f[2], "area": f[3], "qualification": f[4],
                  "experience": f[5], "role": f[6], "email": email_of(f[1]),
-                 "subjects": [r["Subject Code"] for r in curriculum_rows if r["Faculty ID"] == f[0]]} for f in FACULTY],
-    "facultyAssignments": faculty_rows,
+                 "subjects": [r["Subject Code"] for r in curriculum_rows if r["Faculty ID"] == f[0]],
+                 "sections": sum(1 for u in utilization_rows if u["Faculty ID"] == f[0]),
+                 "credits": sum(u["Credits"] for u in utilization_rows if u["Faculty ID"] == f[0]),
+                 "sessions": sum(u["Sessions"] for u in utilization_rows if u["Faculty ID"] == f[0])} for f in FACULTY],
+    "facultyUtilization": utilization_rows,
     "students": student_rows,
     "files": [{"name": HANDBOOK.name, "path": f"docs/{HANDBOOK.name}", "title": "BBA Student Handbook 2026-27",
                "description": "10 pages: overview, pedagogy, subjects, assessment, outcomes, calendar, contacts."},
               {"name": MASTERS.name, "path": f"docs/{MASTERS.name}", "title": "BBA master data 2026-27",
                "description": f"Curriculum ({len(curriculum_rows)} subjects), students ({len(student_rows)}), "
-                              f"faculty assignments ({len(faculty_rows)})."}],
+                              f"faculty ({len(faculty_rows)}), faculty utilization ({len(utilization_rows)} sections)."}],
 }
 (ROOT / "site-data.json").write_text(json.dumps(site, indent=1, ensure_ascii=False))
 
-chars = sum(len("; ".join(f"{k}: {v}" for k, v in r.items())) for r in curriculum_rows + student_rows + faculty_rows)
-print(f"curriculum {len(curriculum_rows)} rows, students {len(student_rows)}, faculty rows {len(faculty_rows)}, "
+chars = sum(len("; ".join(f"{k}: {v}" for k, v in r.items())) for r in curriculum_rows + student_rows + faculty_rows + utilization_rows)
+print(f"curriculum {len(curriculum_rows)} rows, students {len(student_rows)}, faculty {len(faculty_rows)}, "
+      f"utilization {len(utilization_rows)} sections (not offered: {', '.join(not_offered) or 'none'}), "
       f"total credits {TOTAL_CREDITS}, spreadsheet text ≈ {chars:,} chars")
