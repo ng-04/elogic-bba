@@ -352,7 +352,21 @@ function renderUploads() {
   $('mine-ready').hidden = !n;
   $('mine-ready-text').textContent = n ? `${plural(n, 'file')} ready. Answers will use only ${n === 1 ? 'this file' : 'these files'}.` : '';
   $('mine-clear').hidden = !n;
+  paintHeaderFiles();
   updateComposer();
+}
+
+/** The header lists the uploaded files while "Your data" is selected and at least one file is ready. */
+function paintHeaderFiles() {
+  const { files } = SOURCES.mine.kb;
+  const box = $('kb-mine');
+  box.hidden = src.id !== 'mine' || !files.length;
+  if (box.hidden) return;
+  const shown = files.slice(0, 4);
+  const rows = shown.map((f) => el('div', { class: 'kb-row', title: f.folder ? `${f.folder}/${f.name}` : f.name },
+    icon('file'), el('span', { text: f.name }), el('em', { text: describeFile(f) })));
+  if (files.length > shown.length) rows.push(el('p', { class: 'kb-more', text: `+ ${files.length - shown.length} more` }));
+  box.replaceChildren(el('p', { class: 'kb-head', text: `Answering from your ${plural(files.length, 'file')}` }), ...rows);
 }
 
 function wireUploads() {
@@ -382,6 +396,7 @@ function wireUploads() {
 function switchSource(id) {
   src = SOURCES[id];
   for (const b of document.querySelectorAll('.source-tabs button')) b.setAttribute('aria-selected', String(b.dataset.source === id));
+  paintHeaderFiles();
   for (const s of Object.values(SOURCES)) {
     $(s.thread).hidden = true;
     $(s.welcome).hidden = true;
