@@ -57,15 +57,32 @@ passages. The first time, this downloads a 34 MB embedding model.
 three stay consistent:
 
 ```bash
-pip install openpyxl reportlab && python data/generate.py
+pip install xlsxwriter reportlab && python data/generate.py
 ```
 
 | File | Contents |
 |---|---|
 | `docs/E-Logic_BBA_Student_Handbook_2026-27.pdf` | 10 pages: Dean's welcome, overview, pedagogy, credit framework, subjects (2 pages), assessment, outcomes, calendar and contacts |
-| `docs/E-Logic_BBA_Master_Data_2026-27.xlsx` | **Curriculum Master** (56 subjects: academic year, semester, subject, credits, sessions per credit, type, assessment); **Student Master** (120 students: parent, home state, date of admission, CGPA, attendance, fees, mentor…); **Faculty Master** (20 professors: designation, area, qualification, role, email); **Faculty Utilization** (90 rows, one per section taught: semester, subject, section, students, credits, sessions; linked by Faculty ID and Subject Code) |
+| `docs/E-Logic_BBA_Master_Data_2026-27.xlsx` | **Curriculum Master** (56 subjects: area, credits, sessions, minutes, hours taught, faculty credit hours, number of sections, type, assessment); **Student Master** (120 students); **Faculty Master** (20 professors, with faculty credit hours, goal and utilization %); **Faculty Utilization** (90 rows, one per section taught); **Assumptions** (the teaching-time rule) |
 | `site-data.json` | The same data, for the website's pages |
 
 In Faculty Utilization, core subjects run in sections A and B of their batch. Electives run only if
-students enrolled, in sections of up to 20. Each section consumes the subject's credits and sessions,
-so a professor's load is the sum of their rows.
+students enrolled, in sections of up to 20. Each section consumes the subject's credits, sessions and
+faculty credit hours, so a professor's load is the sum of their rows.
+
+### Teaching-time rule
+
+| Credits | Sessions | Minutes per session | Total minutes | Hours taught | Faculty credit hours |
+|---|---|---|---|---|---|
+| 1 | 10 | 75 | 750 | 12.5 | 15 |
+| 4 | 40 | 75 | 3,000 | 50 | 60 |
+
+The rule is the same for every subject. Each faculty member's goal is 150 faculty credit hours per
+academic year, and Utilization % is faculty credit hours ÷ goal × 100.
+
+### Formulas
+
+Calculated columns in the workbook are Excel formulas: lookups between sheets, section and student
+counts, teaching time, and utilization. They refer to named cells on the **Assumptions** sheet, so
+changing a value there recalculates the workbook. Each formula is saved together with its result,
+because the website and Ask E-Logic read the stored values and don't evaluate formulas.

@@ -3,12 +3,14 @@
 Outputs (in docs/):
   E-Logic_BBA_Student_Handbook_2026-27.pdf  10-page student handbook (overview, pedagogy,
                                              subjects, assessment, outcomes, calendar, contacts)
-  E-Logic_BBA_Master_Data_2026-27.xlsx       four sheets: Curriculum Master, Student Master,
-                                             Faculty Master, and Faculty Utilization (one row per
-                                             section taught; links Faculty ID and Subject Code)
+  E-Logic_BBA_Master_Data_2026-27.xlsx       five sheets: Curriculum Master, Student Master,
+                                             Faculty Master, Faculty Utilization (one row per
+                                             section taught; links Faculty ID and Subject Code) and
+                                             Assumptions. Calculated columns are Excel formulas,
+                                             saved with their results.
 and site-data.json, the same data for the website's pages.
 
-Run:  pip install openpyxl reportlab && python data/generate.py
+Run:  pip install xlsxwriter reportlab && python data/generate.py
 E-Logic School of Business and every name, number and date here is fictitious.
 """
 import json
@@ -17,9 +19,8 @@ from collections import Counter, defaultdict
 from datetime import date, timedelta
 from pathlib import Path
 
-from openpyxl import Workbook
-from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
-from openpyxl.utils import get_column_letter
+import xlsxwriter
+from xlsxwriter.utility import xl_col_to_name
 from reportlab.lib import colors
 from reportlab.lib.enums import TA_CENTER, TA_LEFT
 from reportlab.lib.pagesizes import A4
@@ -44,8 +45,28 @@ ANNUAL_FEE = 340000
 
 # ------------------------------------------------------------------ curriculum
 
-# Sessions (60 minutes each) per credit depend on how a course is taught and assessed.
-SESSIONS_PER_CREDIT = {"Exam": 15, "Workshop": 30, "Project": 20}
+# Teaching time, the same for every subject whatever its assessment: 1 credit = 10 sessions of 75 minutes
+# = 12.5 hours taught. For faculty workload each credit counts as 15 faculty credit hours, and each
+# faculty member's goal is 150 faculty credit hours per academic year. The workbook's Assumptions sheet
+# holds these four values, and every formula refers to them.
+SESSIONS_PER_CREDIT = 10
+MINUTES_PER_SESSION = 75
+FCH_PER_CREDIT = 15
+FACULTY_GOAL = 150
+
+
+def num(x):
+    """12.5 stays 12.5; 50.0 becomes 50."""
+    return int(x) if float(x).is_integer() else x
+
+
+def teaching(credits):
+    """Teaching time for one section of a subject with this many credits."""
+    sessions = credits * SESSIONS_PER_CREDIT
+    minutes = sessions * MINUTES_PER_SESSION
+    return {"Number of Sessions": sessions, "Minutes per Session": MINUTES_PER_SESSION, "Total Minutes Taught": minutes,
+            "Hours Taught": num(minutes / 60), "Faculty Credit Hours": credits * FCH_PER_CREDIT}
+
 WEIGHTING = {
     "Exam": "40% internal (quizzes, assignments, mid-term) + 60% end-term exam",
     "Workshop": "100% continuous: studio work, practicals, participation and a final showcase",
@@ -152,11 +173,11 @@ TOTAL_CREDITS = sum(sem_credits(s) for s in CURRICULUM)
 curriculum_rows = []
 for sem, rows in CURRICULUM.items():
     for code, name, cr, typ, assess, track, fid in rows:
-        spc = SESSIONS_PER_CREDIT[assess]
         curriculum_rows.append({
             "Academic Year": AY, "Programme Year": f"Year {(sem + 1) // 2}", "Semester": sem,
-            "Subject Code": code, "Subject": name, "Subject Area": AREA[code], "Credits": cr, "Sessions per Credit": spc,
-            "Total Sessions": cr * spc, "Type": typ,
+            "Subject Code": code, "Subject": name, "Subject Area": AREA[code], "Credits": cr, **teaching(cr),
+            "Number of Sections": None,  # filled in once Faculty Utilization is built
+            "Type": typ,
             "Elective Group": track or "-", "Assessment": assess, "Evaluation Weighting": WEIGHTING[assess],
             "Faculty ID": fid,
         })
@@ -312,8 +333,8 @@ for st in student_rows:
 
 # ------------------------------------------------------------------ faculty utilization
 
-# One row per section taught in 2026-27. Each section is taught (and its credits and sessions consumed)
-# separately, so a subject with two sections uses twice the faculty credits and sessions. Core subjects
+# One row per section taught in 2026-27. Each section is taught (and its credits, sessions and faculty
+# credit hours consumed) separately, so a subject with two sections uses twice as much faculty time. Core subjects
 # run in the batch's own sections; an elective runs only if someone enrolled, in sections of up to 20.
 SECTION_CAP = 20
 BATCH_OF_SEM = {1: "2026-29", 2: "2026-29", 3: "2025-28", 4: "2025-28", 5: "2024-27", 6: "2024-27"}
@@ -350,55 +371,146 @@ for r in curriculum_rows:
         utilization_rows.append({
             "Academic Year": AY, "Term": TERM[sem], "Semester": sem, "Batch": batch,
             "Subject Code": r["Subject Code"], "Subject": r["Subject"], "Subject Area": r["Subject Area"], "Type": r["Type"],
-            "Faculty ID": f[0], "Prof Name": f[1], "Section": sec, "Sections (subject)": len(sections), "Students": n,
-            "Credits": r["Credits"], "Sessions": r["Total Sessions"],
+            "Faculty ID": f[0], "Prof Name": f[1], "Section": sec, "Number of Sections": len(sections), "Students": n,
+            "Credits": r["Credits"], **teaching(r["Credits"]),
             "Status": "Ongoing" if sem % 2 else "Upcoming",
         })
 
-# Curriculum Master gets the number of sections each subject runs, right after Total Sessions.
 section_count = Counter(u["Subject Code"] for u in utilization_rows)
-for i, r in enumerate(curriculum_rows):
-    items = list(r.items())
-    at = [k for k, _ in items].index("Total Sessions") + 1
-    curriculum_rows[i] = dict(items[:at] + [("Sections", section_count[r["Subject Code"]])] + items[at:])
+for r in curriculum_rows:
+    r["Number of Sections"] = section_count[r["Subject Code"]]
+
+# Faculty Master: each professor's faculty credit hours for the year, the goal, and how much of it is used.
+for row in faculty_rows:
+    fch = sum(u["Faculty Credit Hours"] for u in utilization_rows if u["Faculty ID"] == row["Faculty ID"])
+    row.update({"Faculty Credit Hours": fch, "Goal (Faculty Credit Hours)": FACULTY_GOAL,
+                "Utilization %": num(round(fch / FACULTY_GOAL * 100, 1))})
 
 # ------------------------------------------------------------------ Excel workbook
 
-ORANGE, NAVY = "E35A1B", "16233F"
-wb = Workbook()
-thin = Side(style="thin", color="D9D9D9")
+ORANGE, NAVY = "#E35A1B", "#16233F"
+ASSUMPTIONS = [  # name, label, value, note
+    ("SessionsPerCredit", "Sessions per credit", SESSIONS_PER_CREDIT, "Same for every subject (exam, workshop or project)"),
+    ("MinutesPerSession", "Minutes per session", MINUTES_PER_SESSION, "Length of one class session"),
+    ("FacultyCreditHoursPerCredit", "Faculty credit hours per credit", FCH_PER_CREDIT,
+     "Faculty workload per credit taught, per section (teaching plus preparation and assessment)"),
+    ("FacultyGoal", "Faculty goal (faculty credit hours per academic year)", FACULTY_GOAL, "Same for every faculty member"),
+]
+SHEETS = {"Curriculum Master": curriculum_rows, "Student Master": student_rows, "Faculty Master": faculty_rows,
+          "Faculty Utilization": utilization_rows}
 
 
-def write_sheet(ws, rows, widths=None):
-    headers = list(rows[0].keys())
-    ws.append(headers)
-    for r in rows:
-        ws.append([r[h] for h in headers])
-    for c in ws[1]:
-        c.font = Font(bold=True, color="FFFFFF")
-        c.fill = PatternFill("solid", fgColor=NAVY)
-        c.alignment = Alignment(vertical="center", wrap_text=True)
-    ws.row_dimensions[1].height = 32
-    for row in ws.iter_rows(min_row=2):
-        for c in row:
-            c.border = Border(bottom=thin)
-            c.alignment = Alignment(vertical="top", wrap_text=False)
-    for i, h in enumerate(headers, 1):
+def ref(sheet, header, absolute=True):
+    """Column range of a sheet's data, e.g. 'Faculty Utilization'!$E$2:$E$91."""
+    rows = SHEETS[sheet]
+    c = xl_col_to_name(list(rows[0]).index(header))
+    return f"'{sheet}'!${c}$2:${c}${len(rows) + 1}"
+
+
+def cell(sheet, header, n):
+    return f"{xl_col_to_name(list(SHEETS[sheet][0]).index(header))}{n}"
+
+
+def lookup(target_sheet, key_header, value_header, key_cell):
+    return f"INDEX({ref(target_sheet, value_header)},MATCH({key_cell},{ref(target_sheet, key_header)},0))"
+
+
+def teaching_formulas(sheet):
+    """Formulas for the five teaching-time columns, shared by Curriculum Master and Faculty Utilization."""
+    c = lambda h, n: cell(sheet, h, n)
+    return {
+        "Number of Sessions": lambda n, r: f"={c('Credits', n)}*SessionsPerCredit",
+        "Minutes per Session": lambda n, r: "=MinutesPerSession",
+        "Total Minutes Taught": lambda n, r: f"={c('Number of Sessions', n)}*{c('Minutes per Session', n)}",
+        "Hours Taught": lambda n, r: f"={c('Total Minutes Taught', n)}/60",
+        "Faculty Credit Hours": lambda n, r: f"={c('Credits', n)}*FacultyCreditHoursPerCredit",
+    }
+
+
+def students_formula(n, r):
+    """Students in this section, counted from the Student Master. Electives split their enrolment evenly."""
+    u = lambda h: cell("Faculty Utilization", h, n)
+    batch = f"{ref('Student Master', 'Batch')},{u('Batch')}"
+    if r["Type"] == C:
+        return f"=COUNTIFS({batch},{ref('Student Master', 'Section')},{u('Section')})"
+    group = next(c["Elective Group"] for c in curriculum_rows if c["Subject Code"] == r["Subject Code"])
+    column = {"Open Elective I": "Open Elective I (Sem 3)", "Open Elective II": "Open Elective II (Sem 4)"}.get(group, "Specialisation")
+    match = u("Subject") if column != "Specialisation" else lookup("Curriculum Master", "Subject Code", "Elective Group", u("Subject Code"))
+    total = f"COUNTIFS({batch},{ref('Student Master', column)},{match})"
+    k = u("Number of Sections")
+    return f"=INT({total}/{k})+IF(CODE({u('Section')})-64<=MOD({total},{k}),1,0)"
+
+
+FORMULAS = {
+    "Curriculum Master": {
+        **teaching_formulas("Curriculum Master"),
+        "Number of Sections": lambda n, r: f"=COUNTIF({ref('Faculty Utilization', 'Subject Code')},{cell('Curriculum Master', 'Subject Code', n)})",
+    },
+    "Student Master": {
+        "Faculty Mentor": lambda n, r: "=" + lookup("Faculty Master", "Faculty ID", "Prof Name", cell("Student Master", "Mentor ID", n)),
+    },
+    "Faculty Master": {
+        "Faculty Credit Hours": lambda n, r: f"=SUMIF({ref('Faculty Utilization', 'Faculty ID')},{cell('Faculty Master', 'Faculty ID', n)},"
+                                             f"{ref('Faculty Utilization', 'Faculty Credit Hours')})",
+        "Goal (Faculty Credit Hours)": lambda n, r: "=FacultyGoal",
+        "Utilization %": lambda n, r: f"=ROUND({cell('Faculty Master', 'Faculty Credit Hours', n)}/"
+                                      f"{cell('Faculty Master', 'Goal (Faculty Credit Hours)', n)}*100,1)",
+    },
+    "Faculty Utilization": {
+        **{h: (lambda h: lambda n, r: "=" + lookup("Curriculum Master", "Subject Code", h, cell("Faculty Utilization", "Subject Code", n)))(h)
+           for h in ("Subject", "Subject Area", "Type", "Credits")},
+        "Prof Name": lambda n, r: "=" + lookup("Faculty Master", "Faculty ID", "Prof Name", cell("Faculty Utilization", "Faculty ID", n)),
+        "Number of Sections": lambda n, r: f"=COUNTIF({ref('Faculty Utilization', 'Subject Code')},{cell('Faculty Utilization', 'Subject Code', n)})",
+        "Students": students_formula,
+        **teaching_formulas("Faculty Utilization"),
+    },
+}
+
+wb = xlsxwriter.Workbook(str(MASTERS))
+head = wb.add_format({"bold": True, "font_color": "#FFFFFF", "bg_color": NAVY, "valign": "vcenter", "text_wrap": True, "border": 0})
+body_fmt = wb.add_format({"valign": "top", "bottom": 1, "bottom_color": "#D9D9D9"})
+calc_fmt = wb.add_format({"valign": "top", "bottom": 1, "bottom_color": "#D9D9D9", "bg_color": "#FDF1EA"})
+note_fmt = wb.add_format({"italic": True, "font_color": "#5B6170"})
+
+
+def write_sheet(name, rows, formulas):
+    ws = wb.add_worksheet(name)
+    headers = list(rows[0])
+    ws.write_row(0, 0, headers, head)
+    ws.set_row(0, 32)
+    for i, r in enumerate(rows):
+        n = i + 2  # Excel row number
+        for j, h in enumerate(headers):
+            if h in formulas:  # formula, saved with its result so readers without a calculator see the value
+                ws.write_formula(i + 1, j, formulas[h](n, r), calc_fmt, r[h])
+            else:
+                ws.write(i + 1, j, r[h], body_fmt)
+    for j, h in enumerate(headers):
         longest = max(len(str(h)), *(len(str(r[h])) for r in rows))
-        ws.column_dimensions[get_column_letter(i)].width = min(48, max(10, longest + 2))
-    ws.freeze_panes = "B2"
-    ws.auto_filter.ref = ws.dimensions
+        ws.set_column(j, j, min(48, max(10, longest + 2)))
+    ws.freeze_panes(1, 1)
+    ws.autofilter(0, 0, len(rows), len(headers) - 1)
+    ws.set_tab_color(ORANGE)
 
 
-ws = wb.active
-ws.title = "Curriculum Master"
-write_sheet(ws, curriculum_rows)
-write_sheet(wb.create_sheet("Student Master"), student_rows)
-write_sheet(wb.create_sheet("Faculty Master"), faculty_rows)
-write_sheet(wb.create_sheet("Faculty Utilization"), utilization_rows)
-for ws in wb.worksheets:
-    ws.sheet_properties.tabColor = ORANGE
-wb.save(MASTERS)
+for name, rows in SHEETS.items():
+    write_sheet(name, rows, FORMULAS.get(name, {}))
+
+ws = wb.add_worksheet("Assumptions")
+ws.write_row(0, 0, ["Parameter", "Value", "Notes"], head)
+for i, (key, label, value, note) in enumerate(ASSUMPTIONS):
+    ws.write_row(i + 1, 0, [label, value, note], body_fmt)
+    wb.define_name(key, f"=Assumptions!$B${i + 2}")
+ws.write_formula(len(ASSUMPTIONS) + 1, 0, '="Hours taught per credit"', body_fmt, "Hours taught per credit")
+ws.write_formula(len(ASSUMPTIONS) + 1, 1, "=SessionsPerCredit*MinutesPerSession/60", calc_fmt,
+                 num(SESSIONS_PER_CREDIT * MINUTES_PER_SESSION / 60))
+ws.write(len(ASSUMPTIONS) + 1, 2, "Calculated: sessions per credit x minutes per session / 60", body_fmt)
+ws.write(len(ASSUMPTIONS) + 3, 0, "Shaded cells in every sheet are formulas. Change a value here and the workbook recalculates.", note_fmt)
+ws.set_column(0, 0, 50)
+ws.set_column(1, 1, 10)
+ws.set_column(2, 2, 80)
+ws.set_tab_color(NAVY)
+wb.close()
 
 # ------------------------------------------------------------------ handbook PDF
 
@@ -655,13 +767,14 @@ story += [
           [33 * mm, CONTENT_W - 33 * mm - 46 * mm, 46 * mm]),
     Spacer(1, 8),
     P("Sessions and credits", h2),
-    P("One <b>session</b> is a 60-minute contact hour. The number of sessions per credit depends on how a subject is "
-      "taught and assessed, because practice-heavy subjects need more contact time:"),
-    table([["Assessment type", "Sessions per credit", "Example", "Total sessions"],
-           ["Exam (lecture-based)", "15", "Financial Accounting, 4 credits", "60"],
-           ["Workshop (studio / lab)", "30", "Business Communication, 3 credits", "90"],
-           ["Project (mentored)", "20", "Capstone Consulting Project, 6 credits", "120"]],
-          [44 * mm, 32 * mm, CONTENT_W - 44 * mm - 32 * mm - 28 * mm, 28 * mm]),
+    P(f"One <b>session</b> is {MINUTES_PER_SESSION} minutes. Every subject, whatever its assessment, has "
+      f"<b>{SESSIONS_PER_CREDIT} sessions per credit</b>. For faculty workload, each credit taught counts as "
+      f"<b>{FCH_PER_CREDIT} faculty credit hours</b> per section (teaching plus preparation and assessment), against a goal "
+      f"of {FACULTY_GOAL} per faculty member per academic year."),
+    table([["Credits", "Sessions", "Minutes per session", "Total minutes", "Hours taught", "Faculty credit hours"]]
+          + [[str(c), str(t["Number of Sessions"]), str(t["Minutes per Session"]), f"{t['Total Minutes Taught']:,}",
+              str(t["Hours Taught"]), str(t["Faculty Credit Hours"])] for c, t in ((c, teaching(c)) for c in (1, 2, 3, 4))],
+          [20 * mm, 24 * mm, 34 * mm, 30 * mm, 28 * mm, CONTENT_W - 136 * mm]),
     Spacer(1, 8),
     P("Mentoring", h2),
     P("Every student is assigned a <b>faculty mentor</b> on admission, with about ten mentees each. Mentors meet each "
@@ -677,24 +790,18 @@ story += [
 by_sem = defaultdict(lambda: Counter())
 for r in curriculum_rows:
     by_sem[r["Semester"]][(r["Type"], r["Assessment"])] += 1
-struct = [["Semester", "Term", "Core subjects", "Elective choices", "Credits earned", "Sessions (one student)"]]
-total_sessions = 0
+struct = [["Semester", "Term", "Core subjects", "Elective choices", "Credits earned", "Sessions · hours taught"]]
 for sem in CURRICULUM:
     rows = CURRICULUM[sem]
     core = [r for r in rows if r[3] == C]
-    el = [r for r in rows if r[3] == E]
-    sessions = sum(r[2] * SESSIONS_PER_CREDIT[r[4]] for r in core)
-    if sem in (3, 4):
-        choice = "1 open elective (2 credits) from 3"
-        sessions += 2 * 15 if sem == 3 else 2 * 30  # typical choice
-    elif sem in (5, 6):
-        choice = "2 subjects (8 credits) of the chosen specialisation"
-        sessions += 8 * 20
-    else:
-        choice = "-"
-    total_sessions += sessions
-    struct.append([f"Semester {sem}", TERM[sem].split(" (")[0], str(len(core)), choice, str(sem_credits(sem)), f"about {sessions}"])
-struct.append(["<b>Total</b>", "", str(sum(1 for r in curriculum_rows if r["Type"] == C)), "", f"<b>{TOTAL_CREDITS}</b>", f"about {total_sessions}"])
+    choice = {3: "1 open elective (2 credits) from 3", 4: "1 open elective (2 credits) from 3",
+              5: "2 subjects (8 credits) of the chosen specialisation", 6: "2 subjects (8 credits) of the chosen specialisation"}.get(sem, "-")
+    t = teaching(sem_credits(sem))
+    struct.append([f"Semester {sem}", TERM[sem].split(" (")[0], str(len(core)), choice, str(sem_credits(sem)),
+                   f"{t['Number of Sessions']} · {t['Hours Taught']} h"])
+t = teaching(TOTAL_CREDITS)
+struct.append(["<b>Total</b>", "", str(sum(1 for r in curriculum_rows if r["Type"] == C)), "", f"<b>{TOTAL_CREDITS}</b>",
+               f"<b>{t['Number of Sessions']:,} · {t['Hours Taught']:,} h</b>"])
 
 credits_by_assess = Counter()
 for sem, rows in CURRICULUM.items():
@@ -742,7 +849,7 @@ def sem_table(sem):
         # Specialisation codes (MKT/FIN/HRM/BAN) already name the track; open electives get a short tag.
         tag = {"Open Elective I": "OE I", "Open Elective II": "OE II"}.get(track)
         label = f"{name} <font size='6.4' color='#E35A1B'>· {tag}</font>" if tag else name
-        data.append([code, label, typ, str(cr), str(cr * SESSIONS_PER_CREDIT[assess]), assess,
+        data.append([code, label, typ, str(cr), str(cr * SESSIONS_PER_CREDIT), assess,
                      FAC[fid][1].replace("Prof. (Dr.) ", "Dr. ")])
     return table(data, [15.5 * mm, 56 * mm, 14 * mm, 14 * mm, 16 * mm, 20 * mm, CONTENT_W - 135.5 * mm],
                  font=tight, head=tighth, pad=1.8)
@@ -892,7 +999,11 @@ site = {
                  "subjects": [r["Subject Code"] for r in curriculum_rows if r["Faculty ID"] == f[0]],
                  "sections": sum(1 for u in utilization_rows if u["Faculty ID"] == f[0]),
                  "credits": sum(u["Credits"] for u in utilization_rows if u["Faculty ID"] == f[0]),
-                 "sessions": sum(u["Sessions"] for u in utilization_rows if u["Faculty ID"] == f[0])} for f in FACULTY],
+                 "sessions": sum(u["Number of Sessions"] for u in utilization_rows if u["Faculty ID"] == f[0]),
+                 "fch": row["Faculty Credit Hours"], "goal": row["Goal (Faculty Credit Hours)"], "utilization": row["Utilization %"]}
+                for f, row in zip(FACULTY, faculty_rows)],
+    "assumptions": {"sessionsPerCredit": SESSIONS_PER_CREDIT, "minutesPerSession": MINUTES_PER_SESSION,
+                    "fchPerCredit": FCH_PER_CREDIT, "facultyGoal": FACULTY_GOAL},
     "facultyUtilization": utilization_rows,
     "students": student_rows,
     "files": [{"name": HANDBOOK.name, "path": f"docs/{HANDBOOK.name}", "title": "BBA Student Handbook 2026-27",

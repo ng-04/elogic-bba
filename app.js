@@ -112,26 +112,28 @@ function renderCurriculum() {
   const rows = data.curriculum.filter((c) => (!curSem || c.Semester === curSem) && (!type || c.Type === type)
     && (!assess || c.Assessment === assess) && (!area || c['Subject Area'] === area));
   const credits = rows.reduce((n, r) => n + r.Credits, 0);
-  const sessions = rows.reduce((n, r) => n + r['Total Sessions'], 0);
+  const total = (key) => rows.reduce((n, r) => n + r[key], 0);
   $('cur-kpis').replaceChildren(
-    kpi(rows.length, 'subjects shown'), kpi(rows.reduce((n, r) => n + r.Sections, 0), 'sections running'), kpi(credits, 'credits offered (incl. every elective)'), kpi(sessions.toLocaleString('en-IN'), 'sessions in total'),
-    kpi(rows.filter((r) => r.Type === 'Elective').length, 'electives'));
+    kpi(rows.length, 'subjects shown'), kpi(total('Number of Sections'), 'sections running'),
+    kpi(credits, 'credits offered (incl. every elective)'), kpi(total('Number of Sessions').toLocaleString('en-IN'), 'sessions (one section each)'),
+    kpi(total('Hours Taught').toLocaleString('en-IN'), 'hours taught (one section each)'));
   const body = [];
   let lastSem = null;
   for (const r of rows) {
     if (!curSem && r.Semester !== lastSem) {
-      body.push(el('tr', { class: 'sem-row' }, el('td', { colspan: 11, text: `Semester ${r.Semester} · ${r['Programme Year']}` })));
+      body.push(el('tr', { class: 'sem-row' }, el('td', { colspan: 12, text: `Semester ${r.Semester} · ${r['Programme Year']}` })));
       lastSem = r.Semester;
     }
     body.push(el('tr', {}, el('td', { text: r['Subject Code'] }), el('td', {}, el('strong', { text: r.Subject }),
       r['Elective Group'] !== '-' ? el('div', { class: 'qa-ref', text: r['Elective Group'] }) : null),
-    el('td', { text: r['Subject Area'] }), el('td', { text: r['Academic Year'] }), el('td', { class: 'num', text: String(r.Credits) }), el('td', { class: 'num', text: String(r['Sessions per Credit']) }),
-    el('td', { class: 'num', text: String(r['Total Sessions']) }), el('td', { class: 'num', text: String(r.Sections) }), el('td', {}, tag(r.Type)), el('td', {}, tag(r.Assessment)),
+    el('td', { text: r['Subject Area'] }), el('td', { text: r['Academic Year'] }),
+    ['Credits', 'Number of Sessions', 'Hours Taught', 'Faculty Credit Hours', 'Number of Sections'].map((k) => el('td', { class: 'num', text: String(r[k]) })),
+    el('td', {}, tag(r.Type)), el('td', {}, tag(r.Assessment)),
     el('td', { text: facultyName(r['Faculty ID']) })));
   }
   $('cur-table').replaceChildren(
-    el('thead', {}, el('tr', {}, ['Code', 'Subject', 'Subject Area', 'Academic Year', 'Credits', 'Sessions / credit', 'Sessions', 'Sections', 'Type', 'Assessment', 'Faculty'].map((h) => el('th', { text: h })))),
-    el('tbody', {}, body.length ? body : el('tr', {}, el('td', { colspan: 11, text: 'No subjects match these filters.' }))));
+    el('thead', {}, el('tr', {}, ['Code', 'Subject', 'Subject Area', 'Academic Year', 'Credits', 'Sessions', 'Hours taught', 'Faculty credit hours', 'Sections', 'Type', 'Assessment', 'Faculty'].map((h) => el('th', { text: h })))),
+    el('tbody', {}, body.length ? body : el('tr', {}, el('td', { colspan: 12, text: 'No subjects match these filters.' }))));
 }
 
 const kpi = (value, label) => el('div', { class: 'kpi' }, el('strong', { text: String(value) }), el('span', { text: label }));
@@ -158,21 +160,24 @@ function renderFaculty() {
       el('div', {}, el('h3', { text: f.name }), el('div', { class: 'desig', text: f.designation }))),
     el('p', { class: 'area' }, el('strong', { text: f.area }), ` · ${f.specialism} · ${f.qualification} · ${f.experience} years`),
     f.role !== '-' ? el('span', { class: 'role', text: f.role }) : null,
-    el('p', { class: 'load', text: `${plural(f.sections, 'section')} · ${f.credits} credits · ${f.sessions} sessions in 2026-27` }),
+    el('div', { class: 'load' },
+      el('span', { class: `util ${f.utilization > 100 ? 'util-over' : f.utilization < 80 ? 'util-under' : 'util-ok'}`, text: `${f.utilization}% of goal` }),
+      el('span', { text: `${f.fch} of ${f.goal} faculty credit hours · ${plural(f.sections, 'section')} · ${f.credits} credits` })),
     el('div', { class: 'subj' }, f.subjects.map((code) => el('span', { class: 'tag', title: subjectName(code), text: code }))))));
   // Faculty Utilization: one row per section taught, linked to Faculty Master (Faculty ID) and Curriculum Master (Subject Code).
   const rows = data.facultyUtilization.filter((r) => people.some((p) => p.id === r['Faculty ID']));
   const sum = (key) => rows.reduce((n, r) => n + r[key], 0);
   $('fac-table').replaceChildren(
-    el('thead', {}, el('tr', {}, ['Prof Name', 'Semester', 'Term', 'Code', 'Subject', 'Subject Area', 'Type', 'Section', 'Students', 'Credits', 'Sessions', 'Status']
+    el('thead', {}, el('tr', {}, ['Prof Name', 'Semester', 'Term', 'Code', 'Subject', 'Subject Area', 'Type', 'Section', 'Students', 'Credits', 'Sessions', 'Hours taught', 'Faculty credit hours', 'Status']
       .map((h) => el('th', { text: h })))),
     el('tbody', {}, rows.map((r) => el('tr', {}, el('td', { text: r['Prof Name'] }), el('td', { class: 'num', text: String(r.Semester) }),
       el('td', { text: r.Term.split(' (')[0], title: r.Term }), el('td', { text: r['Subject Code'] }), el('td', { text: r.Subject }), el('td', { text: r['Subject Area'] }),
-      el('td', {}, tag(r.Type)), el('td', { text: `${r.Section} of ${r['Sections (subject)']}` }), el('td', { class: 'num', text: String(r.Students) }),
-      el('td', { class: 'num', text: String(r.Credits) }), el('td', { class: 'num', text: String(r.Sessions) }), el('td', { text: r.Status })))),
+      el('td', {}, tag(r.Type)), el('td', { text: `${r.Section} of ${r['Number of Sections']}` }),
+      ['Students', 'Credits', 'Number of Sessions', 'Hours Taught', 'Faculty Credit Hours'].map((k) => el('td', { class: 'num', text: String(r[k]) })),
+      el('td', { text: r.Status })))),
     el('tfoot', {}, el('tr', {}, el('td', { colspan: 7, text: `Total · ${plural(rows.length, 'section')}` }), el('td'),
-      el('td', { class: 'num', text: String(sum('Students')) }), el('td', { class: 'num', text: String(sum('Credits')) }),
-      el('td', { class: 'num', text: sum('Sessions').toLocaleString('en-IN') }), el('td'))));
+      ['Students', 'Credits', 'Number of Sessions', 'Hours Taught', 'Faculty Credit Hours'].map((k) => el('td', { class: 'num', text: sum(k).toLocaleString('en-IN') })),
+      el('td'))));
 }
 
 // ================================================================== students
@@ -479,7 +484,7 @@ function starterGroups() {
       'How is a Workshop subject evaluated, and how many sessions per credit does it get?'] },
     { who: 'Dean', questions: [
       'Chart the number of students by home state.',
-      'What is the average CGPA by batch?',
+      'Which faculty are above their faculty credit hour goal, and by how much?',
       'Which students have fees due or partially paid, and who are their mentors?'] },
   ];
 }
@@ -521,7 +526,10 @@ function buildRequest(source, question, hits, history) {
       + 'You help students, parents and guardians, faculty and the Dean. The documents are the BBA Student Handbook 2026-27 (PDF) '
       + 'and the BBA master data workbook, with the sheets Curriculum Master, Student Master, Faculty Master and Faculty Utilization. '
       + 'Faculty Utilization has one row per section taught in 2026-27; it links to Faculty Master by Faculty ID and to Curriculum Master '
-      + 'by Subject Code, and each section consumes the subject’s credits and sessions, so a professor’s load is the sum of their rows. '
+      + 'by Subject Code, and each section consumes the subject’s credits, sessions and faculty credit hours, so a professor’s load is the sum '
+      + 'of their rows. The Assumptions sheet gives the rule: 1 credit = 10 sessions of 75 minutes = 12.5 hours taught = 15 faculty credit '
+      + 'hours; each faculty member’s goal is 150 faculty credit hours per academic year, and Utilization % in the Faculty Master is faculty '
+      + 'credit hours divided by the goal. '
     : 'You are Ask E-Logic, answering questions about files the user uploaded. The documents below are the only source: '
       + `${kb.files.map((f) => f.name).join(', ')}. Do not use anything you may know about E-Logic School of Business, its handbook `
       + 'or its data, and do not use outside knowledge; if the uploaded files don’t answer the question, say so. ';
