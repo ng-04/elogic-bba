@@ -456,9 +456,16 @@ FORMULAS = {
         "Utilization %": lambda n, r: f"=ROUND({cell('Faculty Master', 'Faculty Credit Hours', n)}/"
                                       f"{cell('Faculty Master', 'Goal (Faculty Credit Hours)', n)}*100,1)",
     },
+    # Every Faculty Utilization column is a formula except its two inputs, Subject Code and Section.
     "Faculty Utilization": {
         **{h: (lambda h: lambda n, r: "=" + lookup("Curriculum Master", "Subject Code", h, cell("Faculty Utilization", "Subject Code", n)))(h)
-           for h in ("Subject", "Subject Area", "Type", "Credits")},
+           for h in ("Academic Year", "Semester", "Subject", "Subject Area", "Type", "Credits", "Faculty ID")},
+        "Term": lambda n, r: (lambda ay, sem: f'=IF(MOD({sem},2)=1,"Odd (Jul-Nov "&LEFT({ay},4)&")","Even (Jan-Apr "&(LEFT({ay},4)+1)&")")')(
+            cell("Faculty Utilization", "Academic Year", n), cell("Faculty Utilization", "Semester", n)),
+        # The batch in a semester started (semester - 1) / 2 years before this academic year, e.g. Semester 5 in 2026-27 -> 2024-27.
+        "Batch": lambda n, r: (lambda ay, sem: f'=(LEFT({ay},4)-INT(({sem}-1)/2))&"-"&RIGHT(LEFT({ay},4)-INT(({sem}-1)/2)+3,2)')(
+            cell("Faculty Utilization", "Academic Year", n), cell("Faculty Utilization", "Semester", n)),
+        "Status": lambda n, r: f'=IF(MOD({cell("Faculty Utilization", "Semester", n)},2)=1,"Ongoing","Upcoming")',
         "Prof Name": lambda n, r: "=" + lookup("Faculty Master", "Faculty ID", "Prof Name", cell("Faculty Utilization", "Faculty ID", n)),
         "Number of Sections": lambda n, r: f"=COUNTIF({ref('Faculty Utilization', 'Subject Code')},{cell('Faculty Utilization', 'Subject Code', n)})",
         "Students": students_formula,
