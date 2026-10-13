@@ -188,6 +188,14 @@ FACULTY = [
 ]
 FAC = {f[0]: f for f in FACULTY}
 
+# Each professor's area, on the same eight subject areas as the curriculum, chosen by what they mostly
+# teach. Their own specialism (above) is kept as a separate column.
+FACULTY_AREA = {
+    "F001": ST, "F002": FA, "F003": MK, "F004": EC, "F005": HR, "F006": AN, "F007": FA, "F008": ST, "F009": MK, "F010": SS,
+    "F011": SS, "F012": ST, "F013": AN, "F014": FA, "F015": SS, "F016": EC, "F017": HR, "F018": ST, "F019": SS, "F020": MK,
+}
+assert set(FACULTY_AREA) == set(FAC) and set(FACULTY_AREA.values()) <= set(SUBJECT_AREAS)
+
 
 def email_of(name):
     parts = [p for p in name.replace("(Dr.)", "").replace(".", "").split() if p not in ("Prof", "Dr", "Adv", "Ms", "Mr")]
@@ -197,7 +205,7 @@ def email_of(name):
 # Faculty Master: one row per professor. What each one teaches is in Faculty Utilization (built below,
 # once student enrolments are known), linked by Faculty ID.
 faculty_rows = [{
-    "Faculty ID": f[0], "Prof Name": f[1], "Designation": f[2], "Area": f[3], "Qualification": f[4],
+    "Faculty ID": f[0], "Prof Name": f[1], "Designation": f[2], "Area": FACULTY_AREA[f[0]], "Specialism": f[3], "Qualification": f[4],
     "Experience (years)": f[5], "Administrative Role": f[6], "Email": email_of(f[1]),
 } for f in FACULTY]
 
@@ -879,7 +887,7 @@ doc.build(story)
 site = {
     "school": SCHOOL, "academicYear": AY, "totalCredits": TOTAL_CREDITS,
     "curriculum": curriculum_rows,
-    "faculty": [{"id": f[0], "name": f[1], "designation": f[2], "area": f[3], "qualification": f[4],
+    "faculty": [{"id": f[0], "name": f[1], "designation": f[2], "area": FACULTY_AREA[f[0]], "specialism": f[3], "qualification": f[4],
                  "experience": f[5], "role": f[6], "email": email_of(f[1]),
                  "subjects": [r["Subject Code"] for r in curriculum_rows if r["Faculty ID"] == f[0]],
                  "sections": sum(1 for u in utilization_rows if u["Faculty ID"] == f[0]),

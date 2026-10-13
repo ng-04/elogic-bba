@@ -155,11 +155,11 @@ function renderFaculty() {
   const area = areaSel.value;
   const subjectName = (code) => (data.curriculum.find((c) => c['Subject Code'] === code) || {}).Subject || code;
   const people = data.faculty.filter((f) => (!area || f.area === area)
-    && (!q || [f.name, f.area, f.designation, f.role, ...f.subjects.map(subjectName), ...f.subjects].join(' ').toLowerCase().includes(q)));
+    && (!q || [f.name, f.area, f.specialism, f.designation, f.role, ...f.subjects.map(subjectName), ...f.subjects].join(' ').toLowerCase().includes(q)));
   $('fac-grid').replaceChildren(...people.map((f, i) => el('article', { class: 'person' },
     el('div', { class: 'person-top' }, el('span', { class: 'avatar', style: `background:${AVATAR[data.faculty.indexOf(f) % AVATAR.length]}`, text: initials(f.name) }),
       el('div', {}, el('h3', { text: f.name }), el('div', { class: 'desig', text: f.designation }))),
-    el('p', { class: 'area', text: `${f.area} · ${f.qualification} · ${f.experience} years` }),
+    el('p', { class: 'area' }, el('strong', { text: f.area }), ` · ${f.specialism} · ${f.qualification} · ${f.experience} years`),
     f.role !== '-' ? el('span', { class: 'role', text: f.role }) : null,
     el('p', { class: 'load', text: `${plural(f.sections, 'section')} · ${f.credits} credits · ${f.sessions} sessions in 2026-27` }),
     el('div', { class: 'subj' }, f.subjects.map((code) => el('span', { class: 'tag', title: subjectName(code), text: code }))))));
