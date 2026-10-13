@@ -115,6 +115,25 @@ CURRICULUM = {
 }
 TRACKS = ["Marketing", "Finance", "Human Resources", "Business Analytics"]
 
+# Subject areas, and the area of every subject. Operations, internship, simulation and capstone count
+# as Strategy (general management); law, communication, languages and ethics as Social Science.
+SUBJECT_AREAS = ["Finance & Accounting", "Economics", "Marketing", "HR & OB", "Information Systems", "Analytics",
+                 "Strategy", "Social Science"]
+FA, EC, MK, HR, IS, AN, ST, SS = SUBJECT_AREAS
+AREA = {
+    "BBA101": ST, "BBA102": EC, "BBA103": FA, "BBA104": AN, "BBA105": SS, "BBA106": IS, "BBA107": SS,
+    "BBA201": HR, "BBA202": EC, "BBA203": FA, "BBA204": AN, "BBA205": EC, "BBA206": ST, "BBA207": SS,
+    "BBA301": MK, "BBA302": FA, "BBA303": HR, "BBA304": SS, "BBA305": AN, "BBA306": HR,
+    "BBA3E1": SS, "BBA3E2": SS, "BBA3E3": SS,
+    "BBA401": ST, "BBA402": AN, "BBA403": MK, "BBA404": ST, "BBA405": FA, "BBA406": ST,
+    "BBA4E1": MK, "BBA4E2": SS, "BBA4E3": EC,
+    "BBA501": ST, "BBA502": SS, "BBA503": ST, "BBA504": HR,
+    "MKT511": MK, "MKT512": MK, "FIN511": FA, "FIN512": FA, "HRM511": HR, "HRM512": HR, "BAN511": AN, "BAN512": AN,
+    "BBA601": ST, "BBA602": FA, "BBA603": ST, "BBA604": HR,
+    "MKT611": MK, "MKT612": MK, "FIN611": FA, "FIN612": FA, "HRM611": HR, "HRM612": HR, "BAN611": AN, "BAN612": IS,
+}
+assert set(AREA) == {r[0] for rows in CURRICULUM.values() for r in rows}, "every subject needs exactly one area"
+
 
 def sem_credits(sem):
     """Credits a student earns in a semester: all core, one open elective, two subjects of one track."""
@@ -135,7 +154,7 @@ for sem, rows in CURRICULUM.items():
         spc = SESSIONS_PER_CREDIT[assess]
         curriculum_rows.append({
             "Academic Year": AY, "Programme Year": f"Year {(sem + 1) // 2}", "Semester": sem,
-            "Subject Code": code, "Subject": name, "Credits": cr, "Sessions per Credit": spc,
+            "Subject Code": code, "Subject": name, "Subject Area": AREA[code], "Credits": cr, "Sessions per Credit": spc,
             "Total Sessions": cr * spc, "Type": typ,
             "Elective Group": track or "-", "Assessment": assess, "Evaluation Weighting": WEIGHTING[assess],
             "Faculty ID": fid,

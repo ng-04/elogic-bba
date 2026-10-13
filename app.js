@@ -102,13 +102,18 @@ function renderCurriculum() {
   if (!tabs.children.length) {
     ['All', 1, 2, 3, 4, 5, 6].forEach((s, i) => tabs.append(el('button', { role: 'tab', type: 'button', text: i ? `Sem ${s}` : s,
       onclick: () => { curSem = i; renderCurriculum(); } })));
+    // Areas in the order they first appear in the curriculum.
+    [...new Set(data.curriculum.map((c) => c['Subject Area']))].forEach((a) => $('cur-area').append(el('option', { text: a })));
+    $('cur-area').addEventListener('change', renderCurriculum);
     $('cur-type').addEventListener('change', renderCurriculum);
     $('cur-assess').addEventListener('change', renderCurriculum);
   }
   [...tabs.children].forEach((b, i) => b.setAttribute('aria-selected', String(i === curSem)));
   const type = $('cur-type').value;
   const assess = $('cur-assess').value;
-  const rows = data.curriculum.filter((c) => (!curSem || c.Semester === curSem) && (!type || c.Type === type) && (!assess || c.Assessment === assess));
+  const area = $('cur-area').value;
+  const rows = data.curriculum.filter((c) => (!curSem || c.Semester === curSem) && (!type || c.Type === type)
+    && (!assess || c.Assessment === assess) && (!area || c['Subject Area'] === area));
   const credits = rows.reduce((n, r) => n + r.Credits, 0);
   const sessions = rows.reduce((n, r) => n + r['Total Sessions'], 0);
   $('cur-kpis').replaceChildren(
@@ -118,18 +123,18 @@ function renderCurriculum() {
   let lastSem = null;
   for (const r of rows) {
     if (!curSem && r.Semester !== lastSem) {
-      body.push(el('tr', { class: 'sem-row' }, el('td', { colspan: 9, text: `Semester ${r.Semester} · ${r['Programme Year']}` })));
+      body.push(el('tr', { class: 'sem-row' }, el('td', { colspan: 10, text: `Semester ${r.Semester} · ${r['Programme Year']}` })));
       lastSem = r.Semester;
     }
     body.push(el('tr', {}, el('td', { text: r['Subject Code'] }), el('td', {}, el('strong', { text: r.Subject }),
       r['Elective Group'] !== '-' ? el('div', { class: 'qa-ref', text: r['Elective Group'] }) : null),
-    el('td', { text: r['Academic Year'] }), el('td', { class: 'num', text: String(r.Credits) }), el('td', { class: 'num', text: String(r['Sessions per Credit']) }),
+    el('td', { text: r['Subject Area'] }), el('td', { text: r['Academic Year'] }), el('td', { class: 'num', text: String(r.Credits) }), el('td', { class: 'num', text: String(r['Sessions per Credit']) }),
     el('td', { class: 'num', text: String(r['Total Sessions']) }), el('td', {}, tag(r.Type)), el('td', {}, tag(r.Assessment)),
     el('td', { text: facultyName(r['Faculty ID']) })));
   }
   $('cur-table').replaceChildren(
-    el('thead', {}, el('tr', {}, ['Code', 'Subject', 'Academic Year', 'Credits', 'Sessions / credit', 'Sessions', 'Type', 'Assessment', 'Faculty'].map((h) => el('th', { text: h })))),
-    el('tbody', {}, body.length ? body : el('tr', {}, el('td', { colspan: 9, text: 'No subjects match these filters.' }))));
+    el('thead', {}, el('tr', {}, ['Code', 'Subject', 'Subject Area', 'Academic Year', 'Credits', 'Sessions / credit', 'Sessions', 'Type', 'Assessment', 'Faculty'].map((h) => el('th', { text: h })))),
+    el('tbody', {}, body.length ? body : el('tr', {}, el('td', { colspan: 10, text: 'No subjects match these filters.' }))));
 }
 
 const kpi = (value, label) => el('div', { class: 'kpi' }, el('strong', { text: String(value) }), el('span', { text: label }));
