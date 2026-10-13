@@ -33,6 +33,7 @@
   <symbol id="i-file" viewBox="0 0 24 24"><path d="M6 3h8l4 4v14H6V3Z M14 3v4h4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></symbol>
   <symbol id="i-menu" viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
   <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+  <symbol id="i-upload" viewBox="0 0 24 24"><path d="M12 16V4M7 9l5-5 5 5M5 20h14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
   <symbol id="i-cal" viewBox="0 0 24 24"><path d="M4 6h16v14H4zM4 10h16M8 3v5M16 3v5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round"/></symbol>
 </svg>
 
@@ -264,11 +265,14 @@
       <div>
         <p class="crumbs crumbs-light">E-Logic School of Business · BBA 2026-27</p>
         <h1>Ask E-Logic</h1>
-        <p>Answers about the BBA from the Student Handbook and the master data, with a citation for every claim.</p>
+        <p>Answers about the BBA from the Student Handbook and the master data, or from files you upload, with a citation for every claim.</p>
       </div>
       <div class="kb" id="kb">
-        <div class="kb-row"><svg><use href="#i-file"/></svg><span>E-Logic_BBA_Student_Handbook_2026-27.pdf</span><em data-kb="pdf">waiting</em></div>
-        <div class="kb-row"><svg><use href="#i-file"/></svg><span>E-Logic_BBA_Master_Data_2026-27.xlsx</span><em data-kb="xlsx">waiting</em></div>
+        <div class="kb-group" id="kb-elogic">
+          <div class="kb-row"><svg><use href="#i-file"/></svg><span>E-Logic_BBA_Student_Handbook_2026-27.pdf</span><em data-kb="pdf">waiting</em></div>
+          <div class="kb-row"><svg><use href="#i-file"/></svg><span>E-Logic_BBA_Master_Data_2026-27.xlsx</span><em data-kb="xlsx">waiting</em></div>
+        </div>
+        <div class="kb-group" id="kb-mine" hidden></div>
       </div>
     </div>
   </div>
@@ -287,7 +291,8 @@
       <div class="panel">
         <h3>How it answers</h3>
         <ul class="ticks ticks-sm">
-          <li>Reads the whole handbook and all three master sheets for every question</li>
+          <li>Reads every document in the selected source for each question</li>
+          <li>In <b>Your data</b>, answers use only the files you upload</li>
           <li>Counts, totals and averages are computed by the page from the spreadsheet, exactly</li>
           <li>Says so when the documents don't contain the answer</li>
           <li>Asks before drawing any chart</li>
@@ -296,6 +301,11 @@
     </aside>
 
     <div class="chat">
+      <div class="source-tabs" role="tablist" aria-label="Answer from">
+        <span class="source-label">Answer from</span>
+        <button type="button" role="tab" data-source="elogic" aria-selected="true"><svg><use href="#i-book"/></svg> E-Logic BBA documents</button>
+        <button type="button" role="tab" data-source="mine" aria-selected="false"><svg><use href="#i-upload"/></svg> Your data <b class="source-count" id="mine-count"></b></button>
+      </div>
       <div class="chat-bar" id="chat-bar" hidden>
         <button class="btn-link chat-back" id="chat-back" type="button"><svg><use href="#i-left"/></svg> Back</button>
         <span class="chat-bar-title" id="chat-bar-title">Conversation</span>
@@ -312,13 +322,40 @@
           <div class="starter" id="starters"></div>
         </div>
         <div class="chat-thread" id="chat-thread" hidden></div>
+
+        <div class="chat-welcome mine-welcome" id="mine-welcome" hidden>
+          <span class="bot-avatar" aria-hidden="true"><i></i><i></i><i></i><b></b></span>
+          <div>
+            <h2>Ask questions about your own data</h2>
+            <p>Upload files and Ask E-Logic answers <strong>only from them</strong>. The E-Logic handbook and master data are not used here.</p>
+          </div>
+          <button class="resume" id="mine-resume" type="button" hidden><svg><use href="#i-chat"/></svg><span><strong>Return to your conversation</strong><small id="mine-resume-count"></small></span><svg><use href="#i-arrow"/></svg></button>
+          <label class="dropzone" id="mine-drop">
+            <input type="file" id="mine-input" multiple class="qa-sr-only">
+            <svg class="dz-icon"><use href="#i-upload"/></svg>
+            <strong>Drop files here, or <u>browse</u></strong>
+            <small>PDF, Word (.docx), Excel (.xlsx, .xlsm) or a .zip of them · up to 20 MB each</small>
+          </label>
+          <p class="up-progress" id="mine-progress" role="status" hidden></p>
+          <ul class="up-files" id="mine-files"></ul>
+          <div class="up-failed" id="mine-failed" hidden></div>
+          <div class="up-ready" id="mine-ready" hidden>
+            <p><svg><use href="#i-info"/></svg><span><span id="mine-ready-text"></span> Files stay in this browser tab; reloading the page clears them.</span></p>
+            <button class="btn-link" id="mine-clear" type="button">Remove all files</button>
+            <div class="starter-group">
+              <h3>Try asking</h3>
+              <div id="mine-starters"></div>
+            </div>
+          </div>
+        </div>
+        <div class="chat-thread" id="mine-thread" hidden></div>
       </div>
       <p class="chat-status" id="chat-status" role="status" hidden></p>
       <form class="composer" id="composer">
         <textarea id="question" rows="1" placeholder="Ask about subjects, credits, students, faculty, dates…" aria-label="Your question"></textarea>
         <button class="btn btn-primary send" id="send" type="submit" aria-label="Send"><svg><use href="#i-send"/></svg></button>
       </form>
-      <p class="fine center">Answers come only from the two documents. Data is fictitious. Check important details with the programme office.</p>
+      <p class="fine center">Answers come only from the selected source. E-Logic data is fictitious. Check important details before relying on them.</p>
     </div>
   </div>
 </section>

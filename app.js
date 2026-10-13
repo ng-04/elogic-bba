@@ -211,9 +211,23 @@ function renderStudents() {
   $('stu-count').textContent = `Showing ${plural(rows.length, 'student')} of ${all.length}. More columns (date of birth, parent contact, category, scholarship, electives) are in the Student Master sheet.`;
 }
 
-// ================================================================== Ask E-Logic: knowledge base
+// ================================================================== Ask E-Logic: sources
 
-const kb = { files: [], chunks: [], index: null, full: true, ready: null };
+// Two separate sources, each with its own documents and conversation. "elogic" is the BBA handbook and
+// master data; "mine" holds only what the visitor uploads, and never sees the E-Logic documents.
+const newKb = () => ({ files: [], chunks: [], index: null, full: true, ready: null });
+const newChat = () => ({ history: [], count: 0, asked: 0 });
+const SOURCES = {
+  elogic: { id: 'elogic', kb: newKb(), chat: newChat(), thread: 'chat-thread', welcome: 'chat-welcome', resume: 'resume-chat', resumeCount: 'resume-count',
+    placeholder: 'Ask about subjects, credits, students, faculty, dates…', reading: 'Reading the handbook and master data',
+    notFound: 'I couldn’t find this in the handbook or the master data.' },
+  mine: { id: 'mine', kb: newKb(), chat: newChat(), thread: 'mine-thread', welcome: 'mine-welcome', resume: 'mine-resume', resumeCount: 'mine-resume-count',
+    placeholder: 'Ask about your uploaded files…', reading: 'Reading your files',
+    notFound: 'I couldn’t find this in your uploaded files.' },
+};
+let src = SOURCES.elogic;
+let busy = false; // one question at a time, across both sources
+let nextFileId = 1;
 
 function kbStatus(key, text, cls = '') {
   const n = document.querySelector(`[data-kb="${key}"]`);
@@ -226,37 +240,172 @@ function defaultSettings() {
   return { ...s, max_answer_tokens: 2000, history_turns: 4 };
 }
 const settings = defaultSettings();
+const chunkParams = () => ({ chunk_strategy: settings.chunk_strategy, chunk_size: settings.chunk_size, chunk_overlap: settings.chunk_overlap });
+const describeFile = (f) => (f.parsed.tables && f.parsed.tables.length
+  ? `${plural(f.parsed.tables.length, 'sheet')} · ${plural(f.parsed.units.length, 'row')}`
+  : f.pages ? plural(f.pages, 'page') : plural(f.parsed.units.length, 'section'));
 
-/** Fetches, reads and chunks both documents once. Embeds them only if they're too big to send whole. */
-function loadKnowledgeBase() {
+/** Reads one file into a source: parse, chunk, and add it. Search vectors are built later, only if needed. */
+async function addToKb(kb, name, folder, buffer) {
+  const parsed = await engine.parseFile(name, buffer);
+  const record = { fileId: `f${nextFileId++}`, name, folder, pages: parsed.pages, parsed };
+  kb.files.push(record);
+  kb.chunks.push(...engine.chunkFile(record.fileId, record, parsed, chunkParams()));
+  kb.full = kb.chunks.reduce((n, c) => n + c.text.length, 0) <= FULL_CONTEXT_LIMIT;
+  return record;
+}
+
+function removeFromKb(kb, fileId) {
+  kb.files = kb.files.filter((f) => f.fileId !== fileId);
+  kb.chunks = kb.chunks.filter((c) => c.fileId !== fileId);
+  if (kb.index) kb.index.removeFile(fileId);
+  kb.full = kb.chunks.reduce((n, c) => n + c.text.length, 0) <= FULL_CONTEXT_LIMIT;
+}
+
+/** When a source is too big to send whole, embeds whatever isn't in its search index yet. The index
+ *  always holds a prefix of kb.chunks in the same order, so new chunks are the tail. */
+async function ensureIndex(kb) {
+  if (kb.full) return;
+  kb.index ||= new engine.VectorIndex();
+  const todo = kb.chunks.slice(kb.index.size);
+  if (!todo.length) return;
+  showStatus('Preparing search over your files (the first time downloads a 34 MB model)…');
+  kb.index.add(todo, await engine.embedPassages(todo.map((c) => c.text)));
+  hideStatus();
+}
+
+/** Fetches, reads and chunks the two E-Logic documents once. */
+function loadElogic() {
+  const kb = SOURCES.elogic.kb;
   kb.ready ||= (async () => {
-    const params = { chunk_strategy: settings.chunk_strategy, chunk_size: settings.chunk_size, chunk_overlap: settings.chunk_overlap };
-    let next = 1;
     for (const doc of DOCS) {
       kbStatus(doc.kb, 'reading…', 'busy');
       try {
         const buffer = await (await fetch(`docs/${doc.name}`)).arrayBuffer();
-        const parsed = await engine.parseFile(doc.name, buffer);
-        const record = { fileId: `f${next++}`, name: doc.name, folder: '', pages: parsed.pages, parsed };
-        const chunks = engine.chunkFile(record.fileId, record, parsed, params);
-        kb.files.push(record);
-        kb.chunks.push(...chunks);
-        kbStatus(doc.kb, parsed.pages ? `${parsed.pages} pages` : `${parsed.tables.length} sheets · ${parsed.units.length} rows`, 'ok');
+        const record = await addToKb(kb, doc.name, '', buffer);
+        kbStatus(doc.kb, describeFile(record), 'ok');
       } catch (e) {
         kbStatus(doc.kb, 'failed', 'err');
         throw new Error(`Couldn’t read ${doc.name}: ${e.message}. Check your connection (the readers load from a CDN) and reload.`);
       }
     }
-    const chars = kb.chunks.reduce((n, c) => n + c.text.length, 0);
-    kb.full = chars <= FULL_CONTEXT_LIMIT;
-    if (!kb.full) {
-      showStatus('Preparing search (first time only, about 34 MB)…');
-      kb.index = new engine.VectorIndex();
-      kb.index.add(kb.chunks, await engine.embedPassages(kb.chunks.map((c) => c.text)));
-      hideStatus();
-    }
-  })().catch((e) => { kb.ready = null; throw e; });
+  })().catch((e) => { kb.ready = null; kb.files = []; kb.chunks = []; throw e; });
   return kb.ready;
+}
+
+// ================================================================== Ask E-Logic: your data (uploads)
+
+const ACCEPT = [...engine.SUPPORTED, '.zip'];
+const upload = { reading: false, failed: [] }; // failed: {name, error}
+
+async function addUploads(fileList) {
+  const files = [...fileList].filter((f) => !f.name.startsWith('.') && !f.name.startsWith('~$'));
+  if (!files.length || upload.reading) return;
+  const kb = SOURCES.mine.kb;
+  upload.reading = true;
+  renderUploads();
+  const queue = [];
+  for (const f of files) {
+    const lower = f.name.toLowerCase();
+    if (lower.endsWith('.zip')) {
+      if (f.size > engine.LIMITS.maxZipMb * 1024 * 1024) { upload.failed.push({ name: f.name, error: `zip larger than ${engine.LIMITS.maxZipMb} MB` }); continue; }
+      try {
+        const { entries, skipped } = await engine.expandZip(f.name, await f.arrayBuffer());
+        for (const e of entries) queue.push({ name: e.name, folder: e.folder, read: async () => e.buffer });
+        for (const sk of skipped) upload.failed.push({ name: sk.path, error: sk.reason });
+      } catch (e) { upload.failed.push({ name: f.name, error: e.message }); }
+    } else if (!engine.isSupported(f.name)) {
+      upload.failed.push({ name: f.name, error: 'not a PDF, Word or Excel file' });
+    } else if (f.size > engine.LIMITS.maxFileMb * 1024 * 1024) {
+      upload.failed.push({ name: f.name, error: `larger than ${engine.LIMITS.maxFileMb} MB` });
+    } else queue.push({ name: f.name, folder: '', read: () => f.arrayBuffer() });
+  }
+  const room = engine.LIMITS.maxFiles - kb.files.length;
+  for (const extra of queue.splice(Math.max(0, room))) upload.failed.push({ name: extra.name, error: `file limit reached (${engine.LIMITS.maxFiles})` });
+  let done = 0;
+  for (const item of queue) {
+    $('mine-progress').textContent = `Reading ${item.name} (${++done} of ${queue.length})…`;
+    try {
+      await addToKb(kb, item.name, item.folder, await item.read());
+    } catch (e) {
+      upload.failed.push({ name: item.name, error: e.message || 'could not read file' });
+    }
+    renderUploads();
+  }
+  upload.reading = false;
+  renderUploads();
+}
+
+function renderUploads() {
+  const kb = SOURCES.mine.kb;
+  $('mine-progress').hidden = !upload.reading;
+  $('mine-files').replaceChildren(...kb.files.map((f) => el('li', {},
+    icon('file'), el('div', { class: 'up-name' }, el('strong', { text: f.folder ? `${f.folder}/${f.name}` : f.name }), el('small', { text: describeFile(f) })),
+    el('button', { type: 'button', class: 'up-remove', 'aria-label': `Remove ${f.name}`, title: 'Remove',
+      onclick: () => { removeFromKb(kb, f.fileId); renderUploads(); } }, icon('x')))));
+  $('mine-failed').hidden = !upload.failed.length;
+  $('mine-failed').replaceChildren(el('p', { class: 'qa-label', text: 'Not added' }),
+    el('ul', {}, upload.failed.map((f) => el('li', { text: `${f.name}: ${f.error}` }))),
+    el('button', { type: 'button', class: 'btn-link', text: 'Dismiss', onclick: () => { upload.failed = []; renderUploads(); } }));
+  const n = kb.files.length;
+  $('mine-count').textContent = n ? String(n) : '';
+  $('mine-ready').hidden = !n;
+  $('mine-ready-text').textContent = n ? `${plural(n, 'file')} ready. Answers will use only ${n === 1 ? 'this file' : 'these files'}.` : '';
+  $('mine-clear').hidden = !n;
+  // The header panel lists whichever source is selected.
+  const rows = n ? kb.files.slice(0, 3).map((f) => el('div', { class: 'kb-row' }, icon('file'), el('span', { text: f.name }), el('em', { class: 'ok', text: describeFile(f) })))
+    : [el('div', { class: 'kb-row' }, icon('file'), el('span', { text: 'No files uploaded yet' }), el('em', { text: 'waiting' }))];
+  if (n > 3) rows.push(el('div', { class: 'kb-more', text: `+ ${n - 3} more` }));
+  $('kb-mine').replaceChildren(...rows);
+  updateComposer();
+}
+
+function wireUploads() {
+  const input = $('mine-input');
+  input.accept = ACCEPT.join(',');
+  input.addEventListener('change', () => { addUploads(input.files); input.value = ''; });
+  const zone = $('mine-drop');
+  for (const ev of ['dragenter', 'dragover']) zone.addEventListener(ev, (e) => { e.preventDefault(); zone.classList.add('is-over'); });
+  for (const ev of ['dragleave', 'drop']) zone.addEventListener(ev, () => zone.classList.remove('is-over'));
+  zone.addEventListener('drop', (e) => { e.preventDefault(); addUploads(e.dataTransfer.files); });
+  $('mine-clear').addEventListener('click', () => {
+    const kb = SOURCES.mine.kb;
+    for (const f of [...kb.files]) removeFromKb(kb, f.fileId);
+    renderUploads();
+  });
+  $('mine-starters').replaceChildren(...[
+    'Give me a short summary of each file.',
+    'What sheets and columns does my spreadsheet have?',
+    'What are the key numbers or dates in these files?',
+    'List anything that looks inconsistent or missing.',
+  ].map((q) => el('button', { class: 'chip-q', type: 'button', text: q, onclick: () => ask(q) })));
+  renderUploads();
+}
+
+// ================================================================== Ask E-Logic: switching source
+
+function switchSource(id) {
+  src = SOURCES[id];
+  for (const b of document.querySelectorAll('.source-tabs button')) b.setAttribute('aria-selected', String(b.dataset.source === id));
+  $('kb-elogic').hidden = id !== 'elogic';
+  $('kb-mine').hidden = id !== 'mine';
+  for (const s of Object.values(SOURCES)) {
+    $(s.thread).hidden = true;
+    $(s.welcome).hidden = true;
+  }
+  hideStatus();
+  $('question').placeholder = src.placeholder;
+  if (src.chat.asked && !src.leftThread) showThread(); else showStart();
+  updateComposer();
+  session.set('elogic.source', id);
+}
+
+function updateComposer() {
+  const empty = src.id === 'mine' && !src.kb.files.length;
+  $('question').disabled = empty;
+  $('send').disabled = empty || busy;
+  if (empty) $('question').placeholder = 'Upload a file above to start asking';
+  else $('question').placeholder = src.placeholder;
 }
 
 // ================================================================== Ask E-Logic: key and model
@@ -303,8 +452,6 @@ function wireKey() {
 
 // ================================================================== Ask E-Logic: chat
 
-const chat = { history: [], asking: false, count: 0, asked: 0 };
-
 function starterGroups() {
   const pickStudent = (pred) => data.students.find(pred) || data.students[0];
   const first = pickStudent((s) => s['Current Semester'] === 1);
@@ -335,7 +482,7 @@ function renderStarters() {
 }
 
 function openAsk() {
-  loadKnowledgeBase().catch((e) => showStatus(e.message, true));
+  loadElogic().catch((e) => { if (src.id === 'elogic') showStatus(e.message, true); });
   setTimeout(() => $('question').focus({ preventScroll: true }), 50);
 }
 
@@ -353,20 +500,25 @@ const botBubble = (...children) => el('div', { class: 'msg-bot' },
 
 /** Builds the prompt with the Local Q&A engine, then moves the documents into a cached system block so
  *  follow-up questions reuse them instead of paying for them again. */
-function buildRequest(question, hits, history) {
+function buildRequest(source, question, hits, history) {
+  const { kb } = source;
   const catalog = engine.chartCatalog(kb.files);
   const { system, messages } = engine.buildPrompt(question, hits, history, settings, catalog, kb.full);
   const last = messages[messages.length - 1].content;
   const cut = last.lastIndexOf('\n\nQuestion: ');
   const documents = last.slice(0, cut);
   const today = new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' });
-  const persona = 'You are Ask E-Logic, the assistant for the BBA programme at E-Logic School of Business (a fictitious institution). '
-    + 'You help students, parents and guardians, faculty and the Dean. The documents are the BBA Student Handbook 2026-27 (PDF) '
-    + 'and the BBA master data workbook, with the sheets Curriculum Master, Student Master and Faculty Master. '
-    + `Today is ${today}; use it for questions about what is next or coming up. Be warm and direct. `;
+  const persona = source.id === 'elogic'
+    ? 'You are Ask E-Logic, the assistant for the BBA programme at E-Logic School of Business (a fictitious institution). '
+      + 'You help students, parents and guardians, faculty and the Dean. The documents are the BBA Student Handbook 2026-27 (PDF) '
+      + 'and the BBA master data workbook, with the sheets Curriculum Master, Student Master and Faculty Master. '
+    : 'You are Ask E-Logic, answering questions about files the user uploaded. The documents below are the only source: '
+      + `${kb.files.map((f) => f.name).join(', ')}. Do not use anything you may know about E-Logic School of Business, its handbook `
+      + 'or its data, and do not use outside knowledge; if the uploaded files don’t answer the question, say so. ';
   return {
     system: [
-      { type: 'text', text: persona + system.replace('provided in their message', 'provided below') },
+      { type: 'text', text: `${persona}Today is ${today}; use it for questions about what is next or coming up. Be warm and direct. `
+        + system.replace('provided in their message', 'provided below') },
       { type: 'text', text: documents, cache_control: { type: 'ephemeral' } },
     ],
     messages: [...messages.slice(0, -1), { role: 'user', content: last.slice(cut + 2) }],
@@ -375,7 +527,10 @@ function buildRequest(question, hits, history) {
 
 async function ask(question) {
   question = (question || '').trim();
-  if (!question || chat.asking) return;
+  if (!question || busy) return;
+  const source = src; // the answer belongs to this source even if the visitor switches tabs meanwhile
+  const { kb, chat } = source;
+  if (source.id === 'mine' && !kb.files.length) { showStatus('Upload a file first. Answers here use only your files.', true); return; }
   storeKey();
   if (!readKey()) {
     showStatus('Add your Anthropic API key on the left, then press send.', true);
@@ -384,26 +539,28 @@ async function ask(question) {
     $('api-key').focus();
     return;
   }
-  chat.asking = true;
-  $('send').disabled = true;
+  busy = true;
+  updateComposer();
   hideStatus();
+  source.leftThread = false;
   showThread();
   const log = $('chat-log');
-  const thread = $('chat-thread');
+  const thread = $(source.thread);
   thread.append(el('div', { class: 'msg-user', text: question }));
   $('question').value = '';
   autoGrow();
-  const live = el('div', { class: 'answer' }, el('span', { class: 'typing', text: 'Reading the handbook and master data' }));
+  const live = el('div', { class: 'answer' }, el('span', { class: 'typing', text: source.reading }));
   const bubble = botBubble(live);
   thread.append(bubble);
   bubble.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
 
   try {
-    await loadKnowledgeBase();
+    if (source.id === 'elogic') await loadElogic();
+    await ensureIndex(kb);
     const history = chat.history.slice(-2 * settings.history_turns);
     const hits = kb.full ? kb.chunks.map((chunk) => ({ chunk, score: 1 }))
       : kb.index.search(await engine.queryVector(question, history), settings);
-    const { system, messages } = buildRequest(question, hits, history);
+    const { system, messages } = buildRequest(source, question, hits, history);
     let text = '';
     const result = await engine.streamAnswer({
       apiKey: readKey(), workspaceId: readWorkspace(), model: model(), system, messages, settings,
@@ -413,39 +570,42 @@ async function ask(question) {
       text += delta;
       live.classList.add('streaming');
       live.textContent = text;
-      log.scrollTop = log.scrollHeight;
+      if (src === source) log.scrollTop = log.scrollHeight;
     });
-    const rec = toRecord(text, hits, result);
-    bubble.replaceWith(renderRecord(rec));
-    chat.history.push({ role: 'user', content: question }, { role: 'assistant', content: historyEntry(rec, text) });
+    const rec = toRecord(source, text, hits, result);
+    bubble.replaceWith(renderRecord(source, rec));
+    chat.history.push({ role: 'user', content: question }, { role: 'assistant', content: historyEntry(source, rec, text) });
     chat.history = chat.history.slice(-20);
     chat.asked += 1;
-    $('chat-bar-title').textContent = `Conversation · ${plural(chat.asked, 'question')}`;
+    if (src === source) $('chat-bar-title').textContent = `Conversation · ${plural(chat.asked, 'question')}`;
   } catch (e) {
+    hideStatus();
     live.classList.remove('streaming');
     live.replaceChildren(el('p', { class: 'error', text: e.message || 'Something went wrong.' }),
       el('button', { type: 'button', class: 'btn-link', text: 'Try again', onclick: () => { bubble.previousSibling.remove(); bubble.remove(); ask(question); } }));
     if (e.code === 'invalid_api_key') $('api-key').focus();
     if (e.code === 'needs_workspace' || e.code === 'bad_workspace') document.querySelector('.ws').open = true;
   } finally {
-    chat.asking = false;
-    $('send').disabled = false;
+    busy = false;
+    updateComposer();
   }
 }
 
-function toRecord(text, hits, { notes, chart, calcs, usage, stopReason, notFound }) {
-  const id = ++chat.count;
-  const meta = { model: model(), mode: kb.full ? 'Both documents in full' : 'Best-matching passages', excerpts: hits.length,
+function toRecord(source, text, hits, { notes, chart, calcs, usage, stopReason, notFound }) {
+  const { kb } = source;
+  const id = `${source.id}-${++source.chat.count}`;
+  const meta = { model: model(), mode: kb.full ? `${plural(kb.files.length, 'document')} in full` : 'Best-matching passages', excerpts: hits.length,
     calculations: calcs.length, tokensIn: usage.input, tokensOut: usage.output, stopReason, reply: text };
   const tables = calcs.filter((c) => c.ok).map((c) => c.table);
-  const source = (n) => ({ n, chunk: hits[n - 1].chunk, score: hits[n - 1].score });
+  const source_ = (n) => ({ n, chunk: hits[n - 1].chunk, score: hits[n - 1].score });
   const cited = [...new Set([...text.matchAll(/\[(\d+)\]/g)].map((m) => Number(m[1])))].filter((n) => n >= 1 && n <= hits.length).sort((a, b) => a - b);
+  const full = kb.full;
   if (chart) {
     const prepared = charts.prepareChart(chart, kb.files, hits, engine.sourceLabel);
     if (prepared.ok) {
       const refs = [...new Set(prepared.chart.series.flatMap((s) => s.refs || []))];
-      return { kind: 'chart', id, text, notes, tables, meta, chart: prepared.chart, status: 'proposed',
-        sources: [...new Set([...cited, ...refs])].sort((a, b) => a - b).map(source) };
+      return { kind: 'chart', id, full, text, notes, tables, meta, chart: prepared.chart, status: 'proposed',
+        sources: [...new Set([...cited, ...refs])].sort((a, b) => a - b).map(source_) };
     }
     notes.push(`I couldn’t prepare that chart: ${prepared.error}. Try naming the sheet and column.`);
   }
@@ -453,18 +613,18 @@ function toRecord(text, hits, { notes, chart, calcs, usage, stopReason, notFound
     return { kind: 'notfound', id, meta, missing: notFound && notFound.missing ? String(notFound.missing) : '',
       checks: notFound && Array.isArray(notFound.checks) ? notFound.checks.filter((c) => c && c.document) : [] };
   }
-  const shown = cited.length || kb.full ? cited : hits.map((_, i) => i + 1);
-  return { kind: 'answer', id, text, notes, tables, meta, sources: shown.map(source) };
+  const shown = cited.length || full ? cited : hits.map((_, i) => i + 1);
+  return { kind: 'answer', id, full, text, notes, tables, meta, sources: shown.map(source_) };
 }
 
-function historyEntry(rec, text) {
+function historyEntry(source, rec, text) {
   if (rec.kind === 'chart') return `${text.trim()}\n[Proposed a ${rec.chart.type} chart “${rec.chart.title}”; waiting for the user to confirm.]`;
   return rec.kind === 'notfound' ? engine.NOT_FOUND : text.trim() || '(answer)';
 }
 
-function renderRecord(rec) {
+function renderRecord(source, rec) {
   if (rec.kind === 'notfound') {
-    const body = [el('div', { class: 'answer' }, el('p', {}, el('strong', { text: 'I couldn’t find this in the handbook or the master data.' }),
+    const body = [el('div', { class: 'answer' }, el('p', {}, el('strong', { text: source.notFound }),
       rec.missing ? el('br') : null, rec.missing ? el('span', { class: 'qa-help', text: rec.missing }) : null))];
     if (rec.checks.length) {
       body.push(el('details', { class: 'qa-calc' }, el('summary', { text: 'How I checked' }), el('div', { class: 'qa-table-wrap' }, el('table', { class: 'qa-table' },
@@ -480,7 +640,7 @@ function renderRecord(rec) {
     (rec.notes || []).filter((n) => !/whole-documents|temperature/.test(n)).map((n) => el('p', { class: 'note' }, icon('info'), n)),
     rec.kind === 'chart' ? chartBlock(rec) : null,
     rec.tables.length ? calcTables(rec.tables) : null,
-    rec.sources.length ? sources(rec.sources, rec.id) : null,
+    rec.sources.length ? sources(rec.sources, rec.id, rec.full) : null,
     meta(rec));
 }
 
@@ -570,11 +730,11 @@ function where(c) {
   return '';
 }
 
-function sources(list, msgId) {
+function sources(list, msgId, full) {
   const ol = el('ol', { hidden: true }, list.map(({ n, chunk, score }) => el('li', { id: `src-${msgId}-${n}` },
     el('span', { class: 'cite', text: String(n) }),
     el('div', {}, el('div', { class: 'where' }, chunk.fileName, where(chunk) ? ` · ${where(chunk)}` : '',
-      kb.full ? null : el('span', { class: 'score', text: ` · match ${score.toFixed(2)}` })),
+      full ? null : el('span', { class: 'score', text: ` · match ${score.toFixed(2)}` })),
     el('blockquote', { text: chunk.text })))));
   const toggle = el('button', { type: 'button', class: 'btn-link', 'aria-expanded': 'false',
     onclick: () => { ol.hidden = !ol.hidden; toggle.setAttribute('aria-expanded', String(!ol.hidden)); } },
@@ -582,23 +742,25 @@ function sources(list, msgId) {
   return el('div', { class: 'sources' }, toggle, ol);
 }
 
-/** The conversation view: messages, with a bar to go back to the suggested questions or start over. */
+/** The current source's conversation, with a bar to go back to its start screen or start over. */
 function showThread() {
-  $('chat-welcome').hidden = true;
-  $('chat-thread').hidden = false;
+  src.leftThread = false;
+  $(src.welcome).hidden = true;
+  $(src.thread).hidden = false;
   $('chat-bar').hidden = false;
-  $('chat-bar-title').textContent = chat.asked ? `Conversation · ${plural(chat.asked, 'question')}` : 'Conversation';
+  $('chat-bar-title').textContent = src.chat.asked ? `Conversation · ${plural(src.chat.asked, 'question')}` : 'Conversation';
   $('chat-log').scrollTop = $('chat-log').scrollHeight;
 }
 
-/** Back to the start screen. The conversation is kept, and can be resumed or continued. */
+/** Back to the current source's start screen. The conversation is kept, and can be resumed or continued. */
 function showStart() {
-  const has = $('chat-thread').children.length > 0;
-  $('chat-thread').hidden = true;
+  const has = $(src.thread).children.length > 0;
+  if (has) src.leftThread = true;
+  $(src.thread).hidden = true;
   $('chat-bar').hidden = true;
-  $('chat-welcome').hidden = false;
-  $('resume-chat').hidden = !has;
-  $('resume-count').textContent = has ? `${plural(chat.asked, 'question')} so far · new questions continue it` : '';
+  $(src.welcome).hidden = false;
+  $(src.resume).hidden = !has;
+  $(src.resumeCount).textContent = has ? `${plural(src.chat.asked, 'question')} so far · new questions continue it` : '';
   $('chat-log').scrollTop = 0;
 }
 
@@ -615,14 +777,15 @@ function wireChat() {
   });
   $('question').addEventListener('input', autoGrow);
   $('chat-back').addEventListener('click', showStart);
-  $('resume-chat').addEventListener('click', showThread);
+  for (const s of Object.values(SOURCES)) $(s.resume).addEventListener('click', showThread);
   $('new-chat').addEventListener('click', () => {
-    if (chat.asking) return;
-    chat.history = [];
-    chat.asked = 0;
-    $('chat-thread').replaceChildren();
+    if (busy) return;
+    Object.assign(src.chat, { history: [], asked: 0 });
+    $(src.thread).replaceChildren();
+    src.leftThread = false;
     showStart();
   });
+  for (const b of document.querySelectorAll('.source-tabs button')) b.addEventListener('click', () => switchSource(b.dataset.source));
 }
 
 // ================================================================== start
@@ -641,6 +804,7 @@ async function start() {
   wireChrome();
   wireKey();
   wireChat();
+  wireUploads();
   try {
     data = await (await fetch('site-data.json')).json();
   } catch (e) {
@@ -653,6 +817,7 @@ async function start() {
   renderFaculty();
   renderStudents();
   renderStarters();
+  switchSource(session.get('elogic.source') === 'mine' ? 'mine' : 'elogic');
   addEventListener('hashchange', route);
   route();
 }

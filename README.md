@@ -37,6 +37,20 @@ It uses the Local Q&A engine in `lib/` (`engine.js`, `qa-chart.js`, copied from 
    averages computed by the page; `propose_chart`, which draws a chart only after the user
    confirms; and `report_not_found`.
 
+## Your data
+
+The Ask page has two sources, chosen with **Answer from**:
+
+- **E-Logic BBA documents**: the handbook and the master data.
+- **Your data**: only files the visitor uploads (PDF, Word, Excel, or a ZIP of them). The E-Logic
+  documents are never loaded or sent in this mode, and the prompt tells Claude the uploads are its
+  only source.
+
+Each source keeps its own conversation. Uploads are read in the browser and kept only in that tab:
+reloading clears them, and nothing goes anywhere except the excerpts sent to Anthropic with a
+question. Large uploads (over 260k characters of text) switch to search over best-matching
+passages. The first time, this downloads a 34 MB embedding model.
+
 ## Regenerate the data
 
 `data/generate.py` writes the handbook, the workbook and `site-data.json` from one source, so the
