@@ -117,24 +117,24 @@ function renderCurriculum() {
   const credits = rows.reduce((n, r) => n + r.Credits, 0);
   const sessions = rows.reduce((n, r) => n + r['Total Sessions'], 0);
   $('cur-kpis').replaceChildren(
-    kpi(rows.length, 'subjects shown'), kpi(credits, 'credits offered (incl. every elective)'), kpi(sessions.toLocaleString('en-IN'), 'sessions in total'),
+    kpi(rows.length, 'subjects shown'), kpi(rows.reduce((n, r) => n + r.Sections, 0), 'sections running'), kpi(credits, 'credits offered (incl. every elective)'), kpi(sessions.toLocaleString('en-IN'), 'sessions in total'),
     kpi(rows.filter((r) => r.Type === 'Elective').length, 'electives'));
   const body = [];
   let lastSem = null;
   for (const r of rows) {
     if (!curSem && r.Semester !== lastSem) {
-      body.push(el('tr', { class: 'sem-row' }, el('td', { colspan: 10, text: `Semester ${r.Semester} · ${r['Programme Year']}` })));
+      body.push(el('tr', { class: 'sem-row' }, el('td', { colspan: 11, text: `Semester ${r.Semester} · ${r['Programme Year']}` })));
       lastSem = r.Semester;
     }
     body.push(el('tr', {}, el('td', { text: r['Subject Code'] }), el('td', {}, el('strong', { text: r.Subject }),
       r['Elective Group'] !== '-' ? el('div', { class: 'qa-ref', text: r['Elective Group'] }) : null),
     el('td', { text: r['Subject Area'] }), el('td', { text: r['Academic Year'] }), el('td', { class: 'num', text: String(r.Credits) }), el('td', { class: 'num', text: String(r['Sessions per Credit']) }),
-    el('td', { class: 'num', text: String(r['Total Sessions']) }), el('td', {}, tag(r.Type)), el('td', {}, tag(r.Assessment)),
+    el('td', { class: 'num', text: String(r['Total Sessions']) }), el('td', { class: 'num', text: String(r.Sections) }), el('td', {}, tag(r.Type)), el('td', {}, tag(r.Assessment)),
     el('td', { text: facultyName(r['Faculty ID']) })));
   }
   $('cur-table').replaceChildren(
-    el('thead', {}, el('tr', {}, ['Code', 'Subject', 'Subject Area', 'Academic Year', 'Credits', 'Sessions / credit', 'Sessions', 'Type', 'Assessment', 'Faculty'].map((h) => el('th', { text: h })))),
-    el('tbody', {}, body.length ? body : el('tr', {}, el('td', { colspan: 10, text: 'No subjects match these filters.' }))));
+    el('thead', {}, el('tr', {}, ['Code', 'Subject', 'Subject Area', 'Academic Year', 'Credits', 'Sessions / credit', 'Sessions', 'Sections', 'Type', 'Assessment', 'Faculty'].map((h) => el('th', { text: h })))),
+    el('tbody', {}, body.length ? body : el('tr', {}, el('td', { colspan: 11, text: 'No subjects match these filters.' }))));
 }
 
 const kpi = (value, label) => el('div', { class: 'kpi' }, el('strong', { text: String(value) }), el('span', { text: label }));
@@ -171,7 +171,7 @@ function renderFaculty() {
       .map((h) => el('th', { text: h })))),
     el('tbody', {}, rows.map((r) => el('tr', {}, el('td', { text: r['Prof Name'] }), el('td', { class: 'num', text: String(r.Semester) }),
       el('td', { text: r.Term.split(' (')[0], title: r.Term }), el('td', { text: r['Subject Code'] }), el('td', { text: r.Subject }), el('td', { text: r['Subject Area'] }),
-      el('td', {}, tag(r.Type)), el('td', { text: r.Section }), el('td', { class: 'num', text: String(r.Students) }),
+      el('td', {}, tag(r.Type)), el('td', { text: `${r.Section} of ${r['Sections (subject)']}` }), el('td', { class: 'num', text: String(r.Students) }),
       el('td', { class: 'num', text: String(r.Credits) }), el('td', { class: 'num', text: String(r.Sessions) }), el('td', { text: r.Status })))),
     el('tfoot', {}, el('tr', {}, el('td', { colspan: 7, text: `Total · ${plural(rows.length, 'section')}` }), el('td'),
       el('td', { class: 'num', text: String(sum('Students')) }), el('td', { class: 'num', text: String(sum('Credits')) }),

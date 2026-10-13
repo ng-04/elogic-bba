@@ -342,10 +342,17 @@ for r in curriculum_rows:
         utilization_rows.append({
             "Academic Year": AY, "Term": TERM[sem], "Semester": sem, "Batch": batch,
             "Subject Code": r["Subject Code"], "Subject": r["Subject"], "Subject Area": r["Subject Area"], "Type": r["Type"],
-            "Faculty ID": f[0], "Prof Name": f[1], "Section": sec, "Students": n,
+            "Faculty ID": f[0], "Prof Name": f[1], "Section": sec, "Sections (subject)": len(sections), "Students": n,
             "Credits": r["Credits"], "Sessions": r["Total Sessions"],
             "Status": "Ongoing" if sem % 2 else "Upcoming",
         })
+
+# Curriculum Master gets the number of sections each subject runs, right after Total Sessions.
+section_count = Counter(u["Subject Code"] for u in utilization_rows)
+for i, r in enumerate(curriculum_rows):
+    items = list(r.items())
+    at = [k for k, _ in items].index("Total Sessions") + 1
+    curriculum_rows[i] = dict(items[:at] + [("Sections", section_count[r["Subject Code"]])] + items[at:])
 
 # ------------------------------------------------------------------ Excel workbook
 
