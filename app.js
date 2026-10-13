@@ -39,10 +39,7 @@ const local = webStore('localStorage');
 const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
 const countBy = (rows, key) => rows.reduce((m, r) => m.set(r[key], (m.get(r[key]) || 0) + 1), new Map());
 
-const DOCS = [
-  { name: 'E-Logic_BBA_Student_Handbook_2026-27.pdf', kb: 'pdf' },
-  { name: 'E-Logic_BBA_Master_Data_2026-27.xlsx', kb: 'xlsx' },
-];
+const DOCS = ['E-Logic_BBA_Student_Handbook_2026-27.pdf', 'E-Logic_BBA_Master_Data_2026-27.xlsx'];
 // The two documents are about 170k characters; sending them whole (prompt-cached) beats retrieval for
 // "list every…" and "how many…" questions. Past this size the bot falls back to best-matching passages.
 const FULL_CONTEXT_LIMIT = 260000;
@@ -242,12 +239,6 @@ let src = SOURCES.elogic;
 let busy = false; // one question at a time, across both sources
 let nextFileId = 1;
 
-function kbStatus(key, text, cls = '') {
-  const n = document.querySelector(`[data-kb="${key}"]`);
-  n.textContent = text;
-  n.className = cls;
-}
-
 function defaultSettings() {
   const s = Object.fromEntries(Object.entries(engine.PARAMS).map(([k, p]) => [k, p.default]));
   return { ...s, max_answer_tokens: 2000, history_turns: 4 };
@@ -291,15 +282,11 @@ async function ensureIndex(kb) {
 function loadElogic() {
   const kb = SOURCES.elogic.kb;
   kb.ready ||= (async () => {
-    for (const doc of DOCS) {
-      kbStatus(doc.kb, 'reading…', 'busy');
+    for (const name of DOCS) {
       try {
-        const buffer = await (await fetch(`docs/${doc.name}`)).arrayBuffer();
-        const record = await addToKb(kb, doc.name, '', buffer);
-        kbStatus(doc.kb, describeFile(record), 'ok');
+        await addToKb(kb, name, '', await (await fetch(`docs/${name}`)).arrayBuffer());
       } catch (e) {
-        kbStatus(doc.kb, 'failed', 'err');
-        throw new Error(`Couldn’t read ${doc.name}: ${e.message}. Check your connection (the readers load from a CDN) and reload.`);
+        throw new Error(`Couldn’t read ${name}: ${e.message}. Check your connection (the readers load from a CDN) and reload.`);
       }
     }
   })().catch((e) => { kb.ready = null; kb.files = []; kb.chunks = []; throw e; });
@@ -365,11 +352,6 @@ function renderUploads() {
   $('mine-ready').hidden = !n;
   $('mine-ready-text').textContent = n ? `${plural(n, 'file')} ready. Answers will use only ${n === 1 ? 'this file' : 'these files'}.` : '';
   $('mine-clear').hidden = !n;
-  // The header panel lists whichever source is selected.
-  const rows = n ? kb.files.slice(0, 3).map((f) => el('div', { class: 'kb-row' }, icon('file'), el('span', { text: f.name }), el('em', { class: 'ok', text: describeFile(f) })))
-    : [el('div', { class: 'kb-row' }, icon('file'), el('span', { text: 'No files uploaded yet' }), el('em', { text: 'waiting' }))];
-  if (n > 3) rows.push(el('div', { class: 'kb-more', text: `+ ${n - 3} more` }));
-  $('kb-mine').replaceChildren(...rows);
   updateComposer();
 }
 
@@ -400,8 +382,6 @@ function wireUploads() {
 function switchSource(id) {
   src = SOURCES[id];
   for (const b of document.querySelectorAll('.source-tabs button')) b.setAttribute('aria-selected', String(b.dataset.source === id));
-  $('kb-elogic').hidden = id !== 'elogic';
-  $('kb-mine').hidden = id !== 'mine';
   for (const s of Object.values(SOURCES)) {
     $(s.thread).hidden = true;
     $(s.welcome).hidden = true;
