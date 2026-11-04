@@ -1,0 +1,83 @@
+{
+  "code": "BBA302",
+  "introduction": "Every business decision eventually shows up in money: what to invest in, how to pay for it, and how much cash to keep on hand. Financial Management gives students the tools to make those decisions well. Building on Financial Accounting (BBA103) and Cost & Management Accounting (BBA203), the course moves from reading financial information to using it. Students learn how money changes value over time, how risk is priced, how investment projects are evaluated, how firms choose between debt and equity, and how day-to-day working capital is managed. Examples are drawn mainly from listed Indian companies, and spreadsheets are used throughout. The course prepares students for Corporate Finance & Banking (BBA405) and the Finance specialisation.",
+  "objectives": [
+    "To build a sound understanding of the goals of financial management and the role of the finance manager in an Indian company.",
+    "To develop the ability to value cash flows over time and to measure risk and return.",
+    "To equip students to take investment, financing and dividend decisions using quantitative tools.",
+    "To develop skill in managing working capital and in communicating financial recommendations."
+  ],
+  "clos": [
+    {
+      "text": "Apply time value of money, risk and return, and valuation concepts to price bonds, shares and business cash flows.",
+      "plg": 1,
+      "mode": "Mid-Term Examination: valuation and time value of money problems (Quiz 1 as a supporting measure)",
+      "rubric": {
+        "exceed": "Selects the right method without prompting, computes values accurately, and explains what the result means for an investor or manager.",
+        "meet": "Selects the right method and reaches a substantially correct value, with minor computational slips and a basic interpretation.",
+        "below": "Selects the wrong method or makes major computational errors, and cannot interpret the result."
+      }
+    },
+    {
+      "text": "Evaluate long-term investment proposals using capital budgeting techniques, supported by spreadsheet analysis, and recommend a decision.",
+      "plg": 2,
+      "mode": "End-Term Examination: capital budgeting problem (Quiz 2 as a supporting measure)",
+      "rubric": {
+        "exceed": "Identifies all relevant cash flows, applies NPV, IRR and related measures correctly, tests key assumptions, and justifies a clear recommendation.",
+        "meet": "Identifies most relevant cash flows, applies the main techniques correctly, and gives a recommendation consistent with the results.",
+        "below": "Includes irrelevant cash flows or misses major ones, misapplies the techniques, or gives a recommendation not supported by the analysis."
+      }
+    },
+    {
+      "text": "Assess how cost of capital, leverage, capital structure and dividend decisions interact to affect firm value under changing market conditions.",
+      "plg": 3,
+      "mode": "End-Term Examination: integrative case-based question",
+      "rubric": {
+        "exceed": "Links financing, dividend and investment decisions, assesses the impact of market conditions on each, and critically weighs alternatives.",
+        "meet": "Explains the main links between the decisions, notes the effect of market conditions, and reaches a reasonable conclusion.",
+        "below": "Treats each decision in isolation, ignores the external environment, or reaches a conclusion without reasoning."
+      }
+    },
+    {
+      "text": "Present a clear written recommendation on a firm's working capital and short-term financing.",
+      "plg": 4,
+      "mode": "Case Analysis: individual written report",
+      "rubric": {
+        "exceed": "The report is well structured and concise, leads with the recommendation, and supports it with accurate figures and well-presented exhibits.",
+        "meet": "The report is organised and readable, states a recommendation, and supports it with relevant figures.",
+        "below": "The report is disorganised or unclear, the recommendation is missing or vague, or the figures do not support it."
+      }
+    }
+  ],
+  "textbooks": [
+    "Chandra, Prasanna. Financial Management: Theory and Practice. McGraw Hill."
+  ],
+  "readings": [
+    "Pandey, I. M. Financial Management. Vikas Publishing House.",
+    "Brigham, Eugene F. and Houston, Joel F. Fundamentals of Financial Management. Cengage.",
+    "Annual reports of listed Indian companies, as announced in class."
+  ],
+  "assessment": {
+    "end_term": {"mode": "Closed book", "clos": [1, 2, 3]},
+    "components": [
+      {"name": "Quiz 1", "unit": "Individual", "weight": 5, "when": "10", "clos": [1]},
+      {"name": "Quiz 2", "unit": "Individual", "weight": 5, "when": "30", "clos": [2]},
+      {"name": "Case Analysis", "unit": "Individual", "weight": 10, "when": "Submitted by Session 38", "clos": [4]},
+      {"name": "Mid-Term Examination", "unit": "Individual", "weight": 20, "when": "Mid-term week (after Session 20)", "clos": [1, 3]}
+    ]
+  },
+  "sessions": [
+    ["1-3", "Introduction to financial management: goals of the firm, role of the finance manager, agency issues, overview of Indian financial markets", "Lecture, Discussion", "Chandra: financial management overview"],
+    ["4-9", "Time value of money: compounding, discounting, annuities, perpetuities, loan amortisation and EMIs", "Lecture, Excel practice", "Chandra: time value of money"],
+    ["10", "Review and Quiz 1", "Individual assessment", "-"],
+    ["11-14", "Risk and return: measuring return and risk, diversification, introduction to CAPM", "Lecture, Discussion", "Chandra: risk and return"],
+    ["15-17", "Valuation of bonds and equity shares", "Lecture, Excel practice", "Chandra: valuation of bonds and stocks"],
+    ["18-20", "Cost of capital: cost of debt, cost of equity, WACC", "Lecture, Student workouts", "Chandra: cost of capital"],
+    ["21-27", "Capital budgeting: estimating project cash flows, payback, NPV, IRR, profitability index, sensitivity and scenario analysis", "Lecture, Excel practice, Case discussion", "Chandra: capital budgeting; Pandey: capital budgeting decisions"],
+    ["28-29", "Operating and financial leverage, EBIT-EPS analysis", "Lecture, Student workouts", "Chandra: leverage"],
+    ["30", "Review and Quiz 2", "Individual assessment", "-"],
+    ["31-33", "Capital structure and dividend decisions", "Lecture, Discussion", "Chandra: capital structure; dividend policy"],
+    ["34-38", "Working capital management: operating cycle, cash, receivables, inventory, short-term financing", "Lecture, Case discussion", "Chandra: working capital; annual reports"],
+    ["39-40", "Integrative review: linking investment, financing and working capital decisions", "Discussion, Student workouts", "-"]
+  ]
+}

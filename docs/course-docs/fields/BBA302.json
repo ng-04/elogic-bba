@@ -1,0 +1,635 @@
+{
+ "course_name": "Financial Management",
+ "COURSE_NAME": "FINANCIAL MANAGEMENT",
+ "course_code": "BBA302",
+ "programme": "Bachelor of Business Administration (BBA)",
+ "batch": "2025-28",
+ "semester": "III",
+ "credits": "4",
+ "academic_year": "2026-27",
+ "term": "Odd (Jul-Nov 2026)",
+ "instructor": "Dr. Arvind Kulkarni",
+ "endorser": "Prof. (Dr.) Meera Raghavan",
+ "endorser_role": "Dean",
+ "students": "40",
+ "sections": "2",
+ "A": "{A}",
+ "B": "{B}",
+ "introduction": "Every business decision eventually shows up in money: what to invest in, how to pay for it, and how much cash to keep on hand. Financial Management gives students the tools to make those decisions well. Building on Financial Accounting (BBA103) and Cost & Management Accounting (BBA203), the course moves from reading financial information to using it. Students learn how money changes value over time, how risk is priced, how investment projects are evaluated, how firms choose between debt and equity, and how day-to-day working capital is managed. Examples are drawn mainly from listed Indian companies, and spreadsheets are used throughout. The course prepares students for Corporate Finance & Banking (BBA405) and the Finance specialisation.",
+ "plagiarism": "Plagiarism above 15% (checked by software) in any submission, or any use of unauthorised AI tools in exams, leads to zero marks for that component. Repeat cases go to the Academic Integrity Committee, chaired by the Dean.",
+ "objectives": [
+  {
+   "n": 1,
+   "text": "To build a sound understanding of the goals of financial management and the role of the finance manager in an Indian company."
+  },
+  {
+   "n": 2,
+   "text": "To develop the ability to value cash flows over time and to measure risk and return."
+  },
+  {
+   "n": 3,
+   "text": "To equip students to take investment, financing and dividend decisions using quantitative tools."
+  },
+  {
+   "n": 4,
+   "text": "To develop skill in managing working capital and in communicating financial recommendations."
+  }
+ ],
+ "textbooks": [
+  {
+   "text": "Chandra, Prasanna. Financial Management: Theory and Practice. McGraw Hill. (latest edition; to be confirmed by faculty)"
+  }
+ ],
+ "readings": [
+  {
+   "n": 1,
+   "text": "Pandey, I. M. Financial Management. Vikas Publishing House."
+  },
+  {
+   "n": 2,
+   "text": "Brigham, Eugene F. and Houston, Joel F. Fundamentals of Financial Management. Cengage."
+  },
+  {
+   "n": 3,
+   "text": "Annual reports of listed Indian companies, as announced in class."
+  }
+ ],
+ "clos": [
+  {
+   "n": 1,
+   "text": "Apply time value of money, risk and return, and valuation concepts to price bonds, shares and business cash flows.",
+   "plg": 1,
+   "plg_label": "PLG 1: Understanding and Application of Fundamentals",
+   "mode": "Mid-Term Examination: valuation and time value of money problems (Quiz 1 as a supporting measure)",
+   "exceed": "Selects the right method without prompting, computes values accurately, and explains what the result means for an investor or manager.",
+   "meet": "Selects the right method and reaches a substantially correct value, with minor computational slips and a basic interpretation.",
+   "below": "Selects the wrong method or makes major computational errors, and cannot interpret the result."
+  },
+  {
+   "n": 2,
+   "text": "Evaluate long-term investment proposals using capital budgeting techniques, supported by spreadsheet analysis, and recommend a decision.",
+   "plg": 2,
+   "plg_label": "PLG 2: Problem Identification and Solution",
+   "mode": "End-Term Examination: capital budgeting problem (Quiz 2 as a supporting measure)",
+   "exceed": "Identifies all relevant cash flows, applies NPV, IRR and related measures correctly, tests key assumptions, and justifies a clear recommendation.",
+   "meet": "Identifies most relevant cash flows, applies the main techniques correctly, and gives a recommendation consistent with the results.",
+   "below": "Includes irrelevant cash flows or misses major ones, misapplies the techniques, or gives a recommendation not supported by the analysis."
+  },
+  {
+   "n": 3,
+   "text": "Assess how cost of capital, leverage, capital structure and dividend decisions interact to affect firm value under changing market conditions.",
+   "plg": 3,
+   "plg_label": "PLG 3: Integrative and Critical Thinking",
+   "mode": "End-Term Examination: integrative case-based question",
+   "exceed": "Links financing, dividend and investment decisions, assesses the impact of market conditions on each, and critically weighs alternatives.",
+   "meet": "Explains the main links between the decisions, notes the effect of market conditions, and reaches a reasonable conclusion.",
+   "below": "Treats each decision in isolation, ignores the external environment, or reaches a conclusion without reasoning."
+  },
+  {
+   "n": 4,
+   "text": "Present a clear written recommendation on a firm's working capital and short-term financing.",
+   "plg": 4,
+   "plg_label": "PLG 4: Effective Communication",
+   "mode": "Case Analysis: individual written report",
+   "exceed": "The report is well structured and concise, leads with the recommendation, and supports it with accurate figures and well-presented exhibits.",
+   "meet": "The report is organised and readable, states a recommendation, and supports it with relevant figures.",
+   "below": "The report is disorganised or unclear, the recommendation is missing or vague, or the figures do not support it."
+  }
+ ],
+ "components": [
+  {
+   "name": "Quiz 1",
+   "unit": "Individual",
+   "weight": "5",
+   "when": "10",
+   "clos": "CLO1"
+  },
+  {
+   "name": "Quiz 2",
+   "unit": "Individual",
+   "weight": "5",
+   "when": "30",
+   "clos": "CLO2"
+  },
+  {
+   "name": "Case Analysis",
+   "unit": "Individual",
+   "weight": "10",
+   "when": "Submitted by Session 38",
+   "clos": "CLO4"
+  },
+  {
+   "name": "Mid-Term Examination",
+   "unit": "Individual",
+   "weight": "20",
+   "when": "Mid-term week (after Session 20)",
+   "clos": "CLO1, CLO3"
+  }
+ ],
+ "sessions": [
+  {
+   "no": "1-3",
+   "topic": "Introduction to financial management: goals of the firm, role of the finance manager, agency issues, overview of Indian financial markets",
+   "pedagogy": "Lecture, Discussion",
+   "reading": "Chandra: financial management overview"
+  },
+  {
+   "no": "4-9",
+   "topic": "Time value of money: compounding, discounting, annuities, perpetuities, loan amortisation and EMIs",
+   "pedagogy": "Lecture, Excel practice",
+   "reading": "Chandra: time value of money"
+  },
+  {
+   "no": "10",
+   "topic": "Review and Quiz 1",
+   "pedagogy": "Individual assessment",
+   "reading": "-"
+  },
+  {
+   "no": "11-14",
+   "topic": "Risk and return: measuring return and risk, diversification, introduction to CAPM",
+   "pedagogy": "Lecture, Discussion",
+   "reading": "Chandra: risk and return"
+  },
+  {
+   "no": "15-17",
+   "topic": "Valuation of bonds and equity shares",
+   "pedagogy": "Lecture, Excel practice",
+   "reading": "Chandra: valuation of bonds and stocks"
+  },
+  {
+   "no": "18-20",
+   "topic": "Cost of capital: cost of debt, cost of equity, WACC",
+   "pedagogy": "Lecture, Student workouts",
+   "reading": "Chandra: cost of capital"
+  },
+  {
+   "no": "21-27",
+   "topic": "Capital budgeting: estimating project cash flows, payback, NPV, IRR, profitability index, sensitivity and scenario analysis",
+   "pedagogy": "Lecture, Excel practice, Case discussion",
+   "reading": "Chandra: capital budgeting; Pandey: capital budgeting decisions"
+  },
+  {
+   "no": "28-29",
+   "topic": "Operating and financial leverage, EBIT-EPS analysis",
+   "pedagogy": "Lecture, Student workouts",
+   "reading": "Chandra: leverage"
+  },
+  {
+   "no": "30",
+   "topic": "Review and Quiz 2",
+   "pedagogy": "Individual assessment",
+   "reading": "-"
+  },
+  {
+   "no": "31-33",
+   "topic": "Capital structure and dividend decisions",
+   "pedagogy": "Lecture, Discussion",
+   "reading": "Chandra: capital structure; dividend policy"
+  },
+  {
+   "no": "34-38",
+   "topic": "Working capital management: operating cycle, cash, receivables, inventory, short-term financing",
+   "pedagogy": "Lecture, Case discussion",
+   "reading": "Chandra: working capital; annual reports"
+  },
+  {
+   "no": "39-40",
+   "topic": "Integrative review: linking investment, financing and working capital decisions",
+   "pedagogy": "Discussion, Student workouts",
+   "reading": "-"
+  }
+ ],
+ "end_term_name": "End-Term",
+ "end_term_weight": "60",
+ "end_term_minutes": "180",
+ "end_term_mode": "Closed book",
+ "end_term_clos": "CLO1, CLO2, CLO3",
+ "plg1_addressed": "Yes",
+ "plg1_clos": "CLO1",
+ "plg2_addressed": "Yes",
+ "plg2_clos": "CLO2",
+ "plg3_addressed": "Yes",
+ "plg3_clos": "CLO3",
+ "plg4_addressed": "Yes",
+ "plg4_clos": "CLO4",
+ "plg5_addressed": "No",
+ "plg5_clos": "-",
+ "plg6_addressed": "No",
+ "plg6_clos": "-",
+ "report": {
+  "cells": {
+   "exam_event": "E-LOGIC BLR UG MID-TERM 2026-27",
+   "program": "BBA",
+   "subject": "[BBA302] Financial Management",
+   "exam_date": "15Sep2026 (02:00 PM - 03:00 PM)",
+   "paper_title": "Financial Management [Answer 3 / 3]",
+   "summary_title": "BBA302 Financial Management: Mid-Term AoL Summary (dummy data)",
+   "report_note": "All names, roll numbers, marks and the exam date are dummy data.",
+   "co1_text": "Apply time value of money, risk and return, and valuation concepts to price bonds, shares and business cash flows.",
+   "co3_text": "Assess how cost of capital, leverage, capital structure and dividend decisions interact to affect firm value under changing market conditions."
+  },
+  "students": [
+   {
+    "section": "A",
+    "name": "Aishwarya Patil",
+    "roll": "EL25BBA001",
+    "marks": [
+     7.5,
+     3.0,
+     4.5
+    ]
+   },
+   {
+    "section": "A",
+    "name": "Rhea Baruah",
+    "roll": "EL25BBA002",
+    "marks": [
+     7.0,
+     4.0,
+     10.0
+    ]
+   },
+   {
+    "section": "A",
+    "name": "Riya Iyer",
+    "roll": "EL25BBA003",
+    "marks": [
+     5.5,
+     4.5,
+     9.0
+    ]
+   },
+   {
+    "section": "A",
+    "name": "Dhruv Pillai",
+    "roll": "EL25BBA004",
+    "marks": [
+     5.0,
+     4.0,
+     7.5
+    ]
+   },
+   {
+    "section": "A",
+    "name": "Abhinav Raman",
+    "roll": "EL25BBA005",
+    "marks": [
+     6.0,
+     3.5,
+     7.5
+    ]
+   },
+   {
+    "section": "A",
+    "name": "Aishwarya Pawar",
+    "roll": "EL25BBA006",
+    "marks": [
+     5.5,
+     4.0,
+     5.5
+    ]
+   },
+   {
+    "section": "A",
+    "name": "Aarav Malhotra",
+    "roll": "EL25BBA007",
+    "marks": [
+     "AB",
+     "AB",
+     "AB"
+    ]
+   },
+   {
+    "section": "A",
+    "name": "Ananya Varghese",
+    "roll": "EL25BBA008",
+    "marks": [
+     4.0,
+     3.0,
+     10.5
+    ]
+   },
+   {
+    "section": "A",
+    "name": "Aditya Bhat",
+    "roll": "EL25BBA009",
+    "marks": [
+     4.5,
+     3.0,
+     4.5
+    ]
+   },
+   {
+    "section": "A",
+    "name": "Aniket Thomas",
+    "roll": "EL25BBA010",
+    "marks": [
+     6.0,
+     2.5,
+     6.0
+    ]
+   },
+   {
+    "section": "A",
+    "name": "Lavanya Reddy",
+    "roll": "EL25BBA011",
+    "marks": [
+     7.0,
+     3.0,
+     6.0
+    ]
+   },
+   {
+    "section": "A",
+    "name": "Lavanya Bhat",
+    "roll": "EL25BBA012",
+    "marks": [
+     5.0,
+     2.5,
+     5.5
+    ]
+   },
+   {
+    "section": "A",
+    "name": "Abhinav Naidu",
+    "roll": "EL25BBA013",
+    "marks": [
+     8.0,
+     3.5,
+     13.5
+    ]
+   },
+   {
+    "section": "A",
+    "name": "Dhruv Sharma",
+    "roll": "EL25BBA014",
+    "marks": [
+     5.0,
+     4.5,
+     10.5
+    ]
+   },
+   {
+    "section": "A",
+    "name": "Mahima Shetty",
+    "roll": "EL25BBA015",
+    "marks": [
+     7.5,
+     4.5,
+     8.0
+    ]
+   },
+   {
+    "section": "A",
+    "name": "Manav Bhat",
+    "roll": "EL25BBA016",
+    "marks": [
+     8.0,
+     3.0,
+     7.5
+    ]
+   },
+   {
+    "section": "A",
+    "name": "Ira Menon",
+    "roll": "EL25BBA017",
+    "marks": [
+     5.5,
+     4.0,
+     8.0
+    ]
+   },
+   {
+    "section": "A",
+    "name": "Aditi Gowda",
+    "roll": "EL25BBA018",
+    "marks": [
+     9.5,
+     3.5,
+     12.5
+    ]
+   },
+   {
+    "section": "A",
+    "name": "Varun Joshi",
+    "roll": "EL25BBA019",
+    "marks": [
+     5.5,
+     3.5,
+     9.0
+    ]
+   },
+   {
+    "section": "A",
+    "name": "Sneha Reddy",
+    "roll": "EL25BBA020",
+    "marks": [
+     5.5,
+     3.0,
+     4.5
+    ]
+   },
+   {
+    "section": "B",
+    "name": "Manav Banerjee",
+    "roll": "EL25BBA021",
+    "marks": [
+     7.5,
+     4.0,
+     14.5
+    ]
+   },
+   {
+    "section": "B",
+    "name": "Dhruv Malhotra",
+    "roll": "EL25BBA022",
+    "marks": [
+     8.5,
+     3.5,
+     12.0
+    ]
+   },
+   {
+    "section": "B",
+    "name": "Keerthana Rao",
+    "roll": "EL25BBA023",
+    "marks": [
+     8.0,
+     3.5,
+     9.5
+    ]
+   },
+   {
+    "section": "B",
+    "name": "Nikhil Srivastava",
+    "roll": "EL25BBA024",
+    "marks": [
+     "AB",
+     "AB",
+     "AB"
+    ]
+   },
+   {
+    "section": "B",
+    "name": "Vivek Shetty",
+    "roll": "EL25BBA025",
+    "marks": [
+     5.0,
+     2.5,
+     6.0
+    ]
+   },
+   {
+    "section": "B",
+    "name": "Pranav Patel",
+    "roll": "EL25BBA026",
+    "marks": [
+     7.5,
+     3.5,
+     7.0
+    ]
+   },
+   {
+    "section": "B",
+    "name": "Karthik Nayak",
+    "roll": "EL25BBA027",
+    "marks": [
+     6.0,
+     4.5,
+     4.5
+    ]
+   },
+   {
+    "section": "B",
+    "name": "Aarav Varghese",
+    "roll": "EL25BBA028",
+    "marks": [
+     7.5,
+     2.5,
+     9.5
+    ]
+   },
+   {
+    "section": "B",
+    "name": "Priya Mohanty",
+    "roll": "EL25BBA029",
+    "marks": [
+     4.5,
+     3.0,
+     5.0
+    ]
+   },
+   {
+    "section": "B",
+    "name": "Trisha Hegde",
+    "roll": "EL25BBA030",
+    "marks": [
+     8.0,
+     2.5,
+     9.0
+    ]
+   },
+   {
+    "section": "B",
+    "name": "Kavya Rao",
+    "roll": "EL25BBA031",
+    "marks": [
+     6.5,
+     3.0,
+     9.5
+    ]
+   },
+   {
+    "section": "B",
+    "name": "Siddharth Malhotra",
+    "roll": "EL25BBA032",
+    "marks": [
+     10.0,
+     4.5,
+     8.5
+    ]
+   },
+   {
+    "section": "B",
+    "name": "Riya Varghese",
+    "roll": "EL25BBA033",
+    "marks": [
+     7.5,
+     3.0,
+     7.0
+    ]
+   },
+   {
+    "section": "B",
+    "name": "Priya Bhat",
+    "roll": "EL25BBA034",
+    "marks": [
+     7.0,
+     3.0,
+     4.5
+    ]
+   },
+   {
+    "section": "B",
+    "name": "Kavya Sharma",
+    "roll": "EL25BBA035",
+    "marks": [
+     6.5,
+     3.5,
+     9.5
+    ]
+   },
+   {
+    "section": "B",
+    "name": "Omkar Pawar",
+    "roll": "EL25BBA036",
+    "marks": [
+     6.5,
+     3.0,
+     6.0
+    ]
+   },
+   {
+    "section": "B",
+    "name": "Rohan Thomas",
+    "roll": "EL25BBA037",
+    "marks": [
+     9.5,
+     3.5,
+     3.5
+    ]
+   },
+   {
+    "section": "B",
+    "name": "Tejas Joshi",
+    "roll": "EL25BBA038",
+    "marks": [
+     6.5,
+     5.0,
+     10.5
+    ]
+   },
+   {
+    "section": "B",
+    "name": "Neil Malhotra",
+    "roll": "EL25BBA039",
+    "marks": [
+     4.5,
+     3.0,
+     5.5
+    ]
+   },
+   {
+    "section": "B",
+    "name": "Nandini Bhat",
+    "roll": "EL25BBA040",
+    "marks": [
+     6.0,
+     2.5,
+     8.5
+    ]
+   }
+  ]
+ }
+}

@@ -1,0 +1,207 @@
+{
+ "course_name": "Entrepreneurship & New Venture Creation",
+ "COURSE_NAME": "ENTREPRENEURSHIP & NEW VENTURE CREATION",
+ "course_code": "BBA404",
+ "programme": "Bachelor of Business Administration (BBA)",
+ "batch": "2025-28",
+ "semester": "IV",
+ "credits": "4",
+ "academic_year": "2026-27",
+ "term": "Even (Jan-Apr 2027)",
+ "instructor": "Prof. Ankit Shah",
+ "endorser": "Dr. Arvind Kulkarni",
+ "endorser_role": "Programme Director",
+ "students": "40",
+ "sections": "2",
+ "A": "{A}",
+ "B": "{B}",
+ "introduction": "Starting a venture is one of the best ways to learn how all the parts of a business fit together. In this project-based course, student teams find a real customer problem, test whether people care about it, and build a venture plan around the solution. Building on Design Thinking Studio (BBA206), Marketing Management (BBA301) and Financial Management (BBA302), the course takes teams through opportunity identification, customer discovery, business models, minimum viable products, unit economics, funding and the legal basics of starting up in India. Progress is reviewed at fixed milestones, and each team closes with a final report and viva. The course prepares students for the Capstone Consulting Project (BBA603).",
+ "plagiarism": "Plagiarism above 15% (checked by software) in any submission, or any use of unauthorised AI tools in exams, leads to zero marks for that component. Repeat cases go to the Academic Integrity Committee, chaired by the Dean.",
+ "objectives": [
+  {
+   "n": 1,
+   "text": "To introduce the entrepreneurial mindset and the Indian start-up ecosystem."
+  },
+  {
+   "n": 2,
+   "text": "To develop skill in finding opportunities and testing them with real customers."
+  },
+  {
+   "n": 3,
+   "text": "To enable students to build a complete and financially sound venture plan."
+  },
+  {
+   "n": 4,
+   "text": "To develop confidence in pitching a venture to mentors and investors."
+  }
+ ],
+ "textbooks": [
+  {
+   "text": "Barringer, Bruce R. and Ireland, R. Duane. Entrepreneurship: Successfully Launching New Ventures. Pearson. (latest edition; to be confirmed by faculty)"
+  }
+ ],
+ "readings": [
+  {
+   "n": 1,
+   "text": "Ries, Eric. The Lean Startup. Crown Business."
+  },
+  {
+   "n": 2,
+   "text": "Osterwalder, Alexander and Pigneur, Yves. Business Model Generation. Wiley."
+  },
+  {
+   "n": 3,
+   "text": "Blank, Steve and Dorf, Bob. The Startup Owner's Manual. Wiley."
+  }
+ ],
+ "clos": [
+  {
+   "n": 1,
+   "text": "Apply core entrepreneurship concepts to identify and describe a viable venture opportunity.",
+   "plg": 1,
+   "plg_label": "PLG 1: Understanding and Application of Fundamentals",
+   "mode": "Proposal: team venture proposal",
+   "exceed": "Describes a specific, well-researched opportunity and applies entrepreneurship concepts accurately and with insight.",
+   "meet": "Describes a clear opportunity and applies the main concepts correctly.",
+   "below": "The opportunity is vague or unsupported, or concepts are misapplied."
+  },
+  {
+   "n": 2,
+   "text": "Identify a real customer problem and validate a solution using primary research and data.",
+   "plg": 2,
+   "plg_label": "PLG 2: Problem Identification and Solution",
+   "mode": "Milestone Reviews: evidence from customer interviews and MVP tests (Mentor Assessment as a supporting measure)",
+   "exceed": "Gathers strong evidence from real customers, changes direction when the data demands it, and shows a validated solution.",
+   "meet": "Gathers enough customer evidence to confirm the problem and tests a solution at least once.",
+   "below": "Relies on assumptions rather than customer evidence, or ignores what the evidence shows."
+  },
+  {
+   "n": 3,
+   "text": "Build an integrated venture plan that links market, operations, finance and the external environment.",
+   "plg": 3,
+   "plg_label": "PLG 3: Integrative and Critical Thinking",
+   "mode": "Final Report and Viva: written venture plan",
+   "exceed": "All parts of the plan fit together, financial projections follow from stated assumptions, and external risks are critically assessed.",
+   "meet": "The plan covers all functional areas with reasonable projections and notes the main external risks.",
+   "below": "Parts of the plan contradict each other, projections are unsupported, or external factors are ignored."
+  },
+  {
+   "n": 4,
+   "text": "Pitch a venture persuasively in writing and in person.",
+   "plg": 4,
+   "plg_label": "PLG 4: Effective Communication",
+   "mode": "Final Report and Viva: team pitch and viva",
+   "exceed": "Delivers a compelling, well-structured pitch and handles tough questions with clear, evidence-based answers.",
+   "meet": "Delivers a clear pitch and answers most questions adequately.",
+   "below": "The pitch is unclear or unconvincing, or the team cannot defend its plan."
+  }
+ ],
+ "components": [
+  {
+   "name": "Proposal",
+   "unit": "Group",
+   "weight": "10",
+   "when": "Submitted by Session 8",
+   "clos": "CLO1"
+  },
+  {
+   "name": "Milestone Reviews",
+   "unit": "Group",
+   "weight": "25",
+   "when": "16, 24 and 32",
+   "clos": "CLO2"
+  },
+  {
+   "name": "Mentor Assessment",
+   "unit": "Individual",
+   "weight": "15",
+   "when": "Completed by Session 38",
+   "clos": "CLO2"
+  }
+ ],
+ "sessions": [
+  {
+   "no": "1-4",
+   "topic": "The entrepreneurial mindset, the Indian start-up ecosystem, founders' journeys",
+   "pedagogy": "Lecture, Discussion, Guest founder talk",
+   "reading": "Barringer and Ireland: introduction to entrepreneurship"
+  },
+  {
+   "no": "5-8",
+   "topic": "Finding opportunities, forming teams, writing the venture proposal",
+   "pedagogy": "Lecture, Studio",
+   "reading": "Barringer and Ireland: recognising opportunities"
+  },
+  {
+   "no": "9-15",
+   "topic": "Customer discovery: interviews, customer profiles, validating the problem",
+   "pedagogy": "Lecture, Field work",
+   "reading": "Blank and Dorf: customer discovery"
+  },
+  {
+   "no": "16",
+   "topic": "Milestone Review 1: problem validation",
+   "pedagogy": "Group assessment",
+   "reading": "-"
+  },
+  {
+   "no": "17-23",
+   "topic": "Business models and MVPs: value proposition, Business Model Canvas, building and testing an MVP",
+   "pedagogy": "Lecture, Studio, Field work",
+   "reading": "Osterwalder and Pigneur: Business Model Canvas; Ries: build-measure-learn"
+  },
+  {
+   "no": "24",
+   "topic": "Milestone Review 2: business model and MVP",
+   "pedagogy": "Group assessment",
+   "reading": "-"
+  },
+  {
+   "no": "25-31",
+   "topic": "Making the numbers work: pricing, unit economics, financial projections, funding sources, company forms, intellectual property",
+   "pedagogy": "Lecture, Student workouts",
+   "reading": "Barringer and Ireland: financial viability; funding; legal foundations"
+  },
+  {
+   "no": "32",
+   "topic": "Milestone Review 3: financial plan",
+   "pedagogy": "Group assessment",
+   "reading": "-"
+  },
+  {
+   "no": "33-36",
+   "topic": "Going to market: customer acquisition, building the team, planning for growth",
+   "pedagogy": "Lecture, Studio",
+   "reading": "Barringer and Ireland: marketing; growth"
+  },
+  {
+   "no": "37-38",
+   "topic": "Pitch clinic with mentors",
+   "pedagogy": "Studio, Peer review",
+   "reading": "-"
+  },
+  {
+   "no": "39-40",
+   "topic": "Writing the venture plan and mock viva",
+   "pedagogy": "Studio",
+   "reading": "-"
+  }
+ ],
+ "end_term_name": "Final Report and Viva",
+ "end_term_weight": "50",
+ "end_term_minutes": "20 per team (viva)",
+ "end_term_mode": "Not applicable",
+ "end_term_clos": "CLO3, CLO4",
+ "plg1_addressed": "Yes",
+ "plg1_clos": "CLO1",
+ "plg2_addressed": "Yes",
+ "plg2_clos": "CLO2",
+ "plg3_addressed": "Yes",
+ "plg3_clos": "CLO3",
+ "plg4_addressed": "Yes",
+ "plg4_clos": "CLO4",
+ "plg5_addressed": "No",
+ "plg5_clos": "-",
+ "plg6_addressed": "No",
+ "plg6_clos": "-"
+}

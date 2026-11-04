@@ -1,0 +1,78 @@
+{
+  "code": "BBA305",
+  "introduction": "Managers today are expected to work with data themselves, not wait for someone else to do it. This hands-on workshop teaches students to take raw business data, clean it, analyse it and turn it into a decision. Building on Digital Productivity Tools (BBA106) and Business Statistics (BBA204), students work first in Excel and then in Python (Jupyter), using the same business datasets in both so they learn when each tool is the better choice. Every session is built around practice in the lab. The course ends with a final showcase, where teams present a data-based recommendation to a jury. It prepares students for Research Methodology (BBA402) and the Business Analytics specialisation.",
+  "objectives": [
+    "To build confidence in preparing and summarising business data in Excel and Python.",
+    "To introduce regression and forecasting as practical tools for business decisions.",
+    "To develop the habit of questioning data, methods and results before acting on them.",
+    "To develop the ability to explain analysis clearly to a non-technical business audience."
+  ],
+  "clos": [
+    {
+      "text": "Clean, summarise and visualise business data using Excel and Python.",
+      "plg": 1,
+      "mode": "Studio and Lab Exercises: Excel and Python lab submissions",
+      "rubric": {
+        "exceed": "Prepares data accurately with no prompting, chooses the most suitable summaries and charts, and writes clean, reusable work in both tools.",
+        "meet": "Prepares data with minor errors and produces correct summaries and charts in both tools.",
+        "below": "Leaves major data errors unresolved, or produces summaries and charts that are wrong or misleading."
+      }
+    },
+    {
+      "text": "Identify a business problem and use regression or forecasting techniques to suggest a data-based solution.",
+      "plg": 2,
+      "mode": "Studio and Lab Exercises: regression and forecasting lab submissions",
+      "rubric": {
+        "exceed": "Frames the problem precisely, selects and tests a suitable model, compares alternatives, and proposes a well-justified solution.",
+        "meet": "Frames the problem clearly, applies a suitable model correctly, and proposes a solution consistent with the results.",
+        "below": "Frames the problem poorly, applies an unsuitable model, or proposes a solution the results do not support."
+      }
+    },
+    {
+      "text": "Critically evaluate analytical results, their limits and their impact across business functions.",
+      "plg": 3,
+      "mode": "Final Showcase: evaluation of results and limitations (peer review as a supporting measure)",
+      "rubric": {
+        "exceed": "Tests the results for weaknesses, explains the limits of the data, and traces the impact across several business functions.",
+        "meet": "Notes the main limits of the analysis and links the results to the relevant business functions.",
+        "below": "Accepts the results without question, or does not link them to the wider business."
+      }
+    },
+    {
+      "text": "Present a data-based recommendation clearly to a business audience.",
+      "plg": 4,
+      "mode": "Final Showcase: team presentation to a jury",
+      "rubric": {
+        "exceed": "Leads with the recommendation, tells a clear story with well-chosen visuals, and answers jury questions with confidence.",
+        "meet": "States the recommendation clearly, uses readable visuals, and answers most jury questions.",
+        "below": "The recommendation is unclear, visuals are hard to follow, or the team cannot answer basic questions."
+      }
+    }
+  ],
+  "textbooks": [
+    "Albright, S. Christian and Winston, Wayne L. Business Analytics: Data Analysis and Decision Making. Cengage.",
+    "McKinney, Wes. Python for Data Analysis. O'Reilly Media."
+  ],
+  "readings": [
+    "Provost, Foster and Fawcett, Tom. Data Science for Business. O'Reilly Media.",
+    "Business datasets and lab notebooks shared on the learning portal."
+  ],
+  "assessment": {
+    "end_term": {"clos": []},
+    "components": [
+      {"name": "Studio and Lab Exercises", "unit": "Individual", "weight": 50, "when": "Sessions 3-23", "clos": [1, 2]},
+      {"name": "Participation and Peer Review", "unit": "Individual", "weight": 20, "when": "Throughout; peer review in Sessions 27-28", "clos": [3]},
+      {"name": "Final Showcase", "unit": "Group", "weight": 30, "when": "29-30", "clos": [3, 4]}
+    ]
+  },
+  "sessions": [
+    ["1-2", "Introduction to business analytics: types of business data, the analytics process, setting up Excel and Jupyter", "Lecture, Lab", "Albright and Winston: introduction to business analytics"],
+    ["3-8", "Excel for analysis: cleaning data, lookups, pivot tables, summary statistics, dashboards", "Lab, Student workouts", "Albright and Winston: describing data"],
+    ["9-14", "Python for analysis: Python basics, loading, cleaning and summarising data with pandas", "Lab, Student workouts", "McKinney: Python basics; pandas"],
+    ["15-18", "Data visualisation in Excel and Python: choosing the right chart, avoiding misleading charts", "Lab, Peer critique", "McKinney: plotting and visualisation"],
+    ["19-23", "Regression and forecasting: simple and multiple regression, trend and seasonality, testing a forecast", "Lecture, Lab", "Albright and Winston: regression; time series"],
+    ["24-26", "Analytics across business functions: marketing, finance and operations examples, limits of analysis, data privacy", "Discussion, Lab", "Provost and Fawcett: selected readings"],
+    ["27-28", "Showcase clinic: team analysis review and peer review", "Studio, Peer review", "-"],
+    ["29-30", "Final showcase: team presentations to a jury", "Group assessment", "-"]
+  ]
+}

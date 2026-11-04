@@ -1,0 +1,188 @@
+{
+ "course_name": "Business Analytics with Excel & Python",
+ "COURSE_NAME": "BUSINESS ANALYTICS WITH EXCEL & PYTHON",
+ "course_code": "BBA305",
+ "programme": "Bachelor of Business Administration (BBA)",
+ "batch": "2025-28",
+ "semester": "III",
+ "credits": "3",
+ "academic_year": "2026-27",
+ "term": "Odd (Jul-Nov 2026)",
+ "instructor": "Prof. Karthik Subramanian",
+ "endorser": "Dr. Arvind Kulkarni",
+ "endorser_role": "Programme Director",
+ "students": "40",
+ "sections": "2",
+ "A": "{A}",
+ "B": "{B}",
+ "introduction": "Managers today are expected to work with data themselves, not wait for someone else to do it. This hands-on workshop teaches students to take raw business data, clean it, analyse it and turn it into a decision. Building on Digital Productivity Tools (BBA106) and Business Statistics (BBA204), students work first in Excel and then in Python (Jupyter), using the same business datasets in both so they learn when each tool is the better choice. Every session is built around practice in the lab. The course ends with a final showcase, where teams present a data-based recommendation to a jury. It prepares students for Research Methodology (BBA402) and the Business Analytics specialisation.",
+ "plagiarism": "Plagiarism above 15% (checked by software) in any submission, or any use of unauthorised AI tools in exams, leads to zero marks for that component. Repeat cases go to the Academic Integrity Committee, chaired by the Dean.",
+ "objectives": [
+  {
+   "n": 1,
+   "text": "To build confidence in preparing and summarising business data in Excel and Python."
+  },
+  {
+   "n": 2,
+   "text": "To introduce regression and forecasting as practical tools for business decisions."
+  },
+  {
+   "n": 3,
+   "text": "To develop the habit of questioning data, methods and results before acting on them."
+  },
+  {
+   "n": 4,
+   "text": "To develop the ability to explain analysis clearly to a non-technical business audience."
+  }
+ ],
+ "textbooks": [
+  {
+   "text": "Albright, S. Christian and Winston, Wayne L. Business Analytics: Data Analysis and Decision Making. Cengage. (latest edition; to be confirmed by faculty)"
+  },
+  {
+   "text": "McKinney, Wes. Python for Data Analysis. O'Reilly Media. (latest edition; to be confirmed by faculty)"
+  }
+ ],
+ "readings": [
+  {
+   "n": 1,
+   "text": "Provost, Foster and Fawcett, Tom. Data Science for Business. O'Reilly Media."
+  },
+  {
+   "n": 2,
+   "text": "Business datasets and lab notebooks shared on the learning portal."
+  }
+ ],
+ "clos": [
+  {
+   "n": 1,
+   "text": "Clean, summarise and visualise business data using Excel and Python.",
+   "plg": 1,
+   "plg_label": "PLG 1: Understanding and Application of Fundamentals",
+   "mode": "Studio and Lab Exercises: Excel and Python lab submissions",
+   "exceed": "Prepares data accurately with no prompting, chooses the most suitable summaries and charts, and writes clean, reusable work in both tools.",
+   "meet": "Prepares data with minor errors and produces correct summaries and charts in both tools.",
+   "below": "Leaves major data errors unresolved, or produces summaries and charts that are wrong or misleading."
+  },
+  {
+   "n": 2,
+   "text": "Identify a business problem and use regression or forecasting techniques to suggest a data-based solution.",
+   "plg": 2,
+   "plg_label": "PLG 2: Problem Identification and Solution",
+   "mode": "Studio and Lab Exercises: regression and forecasting lab submissions",
+   "exceed": "Frames the problem precisely, selects and tests a suitable model, compares alternatives, and proposes a well-justified solution.",
+   "meet": "Frames the problem clearly, applies a suitable model correctly, and proposes a solution consistent with the results.",
+   "below": "Frames the problem poorly, applies an unsuitable model, or proposes a solution the results do not support."
+  },
+  {
+   "n": 3,
+   "text": "Critically evaluate analytical results, their limits and their impact across business functions.",
+   "plg": 3,
+   "plg_label": "PLG 3: Integrative and Critical Thinking",
+   "mode": "Final Showcase: evaluation of results and limitations (peer review as a supporting measure)",
+   "exceed": "Tests the results for weaknesses, explains the limits of the data, and traces the impact across several business functions.",
+   "meet": "Notes the main limits of the analysis and links the results to the relevant business functions.",
+   "below": "Accepts the results without question, or does not link them to the wider business."
+  },
+  {
+   "n": 4,
+   "text": "Present a data-based recommendation clearly to a business audience.",
+   "plg": 4,
+   "plg_label": "PLG 4: Effective Communication",
+   "mode": "Final Showcase: team presentation to a jury",
+   "exceed": "Leads with the recommendation, tells a clear story with well-chosen visuals, and answers jury questions with confidence.",
+   "meet": "States the recommendation clearly, uses readable visuals, and answers most jury questions.",
+   "below": "The recommendation is unclear, visuals are hard to follow, or the team cannot answer basic questions."
+  }
+ ],
+ "components": [
+  {
+   "name": "Studio and Lab Exercises",
+   "unit": "Individual",
+   "weight": "50",
+   "when": "Sessions 3-23",
+   "clos": "CLO1, CLO2"
+  },
+  {
+   "name": "Participation and Peer Review",
+   "unit": "Individual",
+   "weight": "20",
+   "when": "Throughout; peer review in Sessions 27-28",
+   "clos": "CLO3"
+  },
+  {
+   "name": "Final Showcase",
+   "unit": "Group",
+   "weight": "30",
+   "when": "29-30",
+   "clos": "CLO3, CLO4"
+  }
+ ],
+ "sessions": [
+  {
+   "no": "1-2",
+   "topic": "Introduction to business analytics: types of business data, the analytics process, setting up Excel and Jupyter",
+   "pedagogy": "Lecture, Lab",
+   "reading": "Albright and Winston: introduction to business analytics"
+  },
+  {
+   "no": "3-8",
+   "topic": "Excel for analysis: cleaning data, lookups, pivot tables, summary statistics, dashboards",
+   "pedagogy": "Lab, Student workouts",
+   "reading": "Albright and Winston: describing data"
+  },
+  {
+   "no": "9-14",
+   "topic": "Python for analysis: Python basics, loading, cleaning and summarising data with pandas",
+   "pedagogy": "Lab, Student workouts",
+   "reading": "McKinney: Python basics; pandas"
+  },
+  {
+   "no": "15-18",
+   "topic": "Data visualisation in Excel and Python: choosing the right chart, avoiding misleading charts",
+   "pedagogy": "Lab, Peer critique",
+   "reading": "McKinney: plotting and visualisation"
+  },
+  {
+   "no": "19-23",
+   "topic": "Regression and forecasting: simple and multiple regression, trend and seasonality, testing a forecast",
+   "pedagogy": "Lecture, Lab",
+   "reading": "Albright and Winston: regression; time series"
+  },
+  {
+   "no": "24-26",
+   "topic": "Analytics across business functions: marketing, finance and operations examples, limits of analysis, data privacy",
+   "pedagogy": "Discussion, Lab",
+   "reading": "Provost and Fawcett: selected readings"
+  },
+  {
+   "no": "27-28",
+   "topic": "Showcase clinic: team analysis review and peer review",
+   "pedagogy": "Studio, Peer review",
+   "reading": "-"
+  },
+  {
+   "no": "29-30",
+   "topic": "Final showcase: team presentations to a jury",
+   "pedagogy": "Group assessment",
+   "reading": "-"
+  }
+ ],
+ "end_term_name": "No end-term exam",
+ "end_term_weight": "-",
+ "end_term_minutes": "-",
+ "end_term_mode": "-",
+ "end_term_clos": "-",
+ "plg1_addressed": "Yes",
+ "plg1_clos": "CLO1",
+ "plg2_addressed": "Yes",
+ "plg2_clos": "CLO2",
+ "plg3_addressed": "Yes",
+ "plg3_clos": "CLO3",
+ "plg4_addressed": "Yes",
+ "plg4_clos": "CLO4",
+ "plg5_addressed": "No",
+ "plg5_clos": "-",
+ "plg6_addressed": "No",
+ "plg6_clos": "-"
+}

@@ -48,7 +48,7 @@ let data = null;
 
 // ================================================================== routing
 
-const VIEWS = ['ask', 'programme', 'curriculum', 'faculty', 'students', 'handbook', 'ask'];
+const VIEWS = ['ask', 'programme', 'curriculum', 'faculty', 'students', 'handbook', 'planner', 'ask'];
 let curSem = 0; // 0 = all semesters
 
 function route() {
@@ -60,6 +60,7 @@ function route() {
   $('nav-toggle').setAttribute('aria-expanded', 'false');
   $('fab').hidden = name === 'ask';
   if (name === 'curriculum' && sub && /^[1-6]$/.test(sub)) { curSem = Number(sub); renderCurriculum(); }
+  if (name === 'planner') showPlanTab(sub);
   const target = sub && name === 'programme' ? document.getElementById(`programme-${sub}`) : null;
   if (target) target.scrollIntoView({ behavior: 'smooth' });
   else window.scrollTo({ top: 0 });
@@ -230,6 +231,415 @@ function renderStudents() {
 
 // Two separate sources, each with its own documents and conversation. "elogic" is the BBA handbook and
 // master data; "mine" holds only what the visitor uploads, and never sees the E-Logic documents.
+// ================================================================== course planner
+
+// The documents are built ahead of time and reviewed; docs/course-docs/index.json lists what exists.
+const PLAN_DIR = 'docs/course-docs/';
+const PLAN_DOCS = [['outline', 'Course Outline'], ['aol', 'AoL Plan'], ['report', 'AoL Report']];
+const PLAN_BLANKS = { outline: 'E-Logic_Course_Outline_Template.docx', aol: 'E-Logic_AoL_Plan_Template.docx', report: 'E-Logic_AoL_Report_Template.xlsx' };
+const JSZIP = 'https://cdn.jsdelivr.net/npm/jszip@3.10.2/+esm';
+const PIZZIP = 'https://cdn.jsdelivr.net/npm/pizzip@3.3.0/+esm';
+const DOCXTEMPLATER = 'https://cdn.jsdelivr.net/npm/docxtemplater@3.71.0/+esm';
+const EXCELJS = 'https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js';
+const MAMMOTH = 'https://cdn.jsdelivr.net/npm/mammoth@1.13.0/mammoth.browser.min.js';
+const DOCX_TYPE = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+const XLSX_TYPE = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+const TEMPLATE_LIMIT = 10 * 1024 * 1024;
+// Old branding that must not reach E-Logic documents; encoded so this public file doesn't name it.
+const OLD_BRANDING = new RegExp(atob('dFwuPyA/YVwuPyA/cGFpfHRhcG1pfG1hbmlwYWw='), 'i');
+let planIndex = {};
+let planFiles = [];
+let planCustom = {}; // kind -> { name, blob, savedAt, warnings }: uploaded templates in this browser
+const planFields = new Map();
+
+const loadScript = (src, global) => new Promise((resolve, reject) => {
+  if (window[global]) { resolve(window[global]); return; }
+  const script = el('script', { src });
+  script.onload = () => resolve(window[global]);
+  script.onerror = () => reject(new Error(`Couldn't load ${global}`));
+  document.head.append(script);
+});
+const loadExcel = () => loadScript(EXCELJS, 'ExcelJS');
+const loadPizZip = async () => (await import(PIZZIP)).default;
+
+// ------------------------------------------------------------------ uploaded templates, kept in this browser
+
+function templateStore(mode, work) {
+  return new Promise((resolve, reject) => {
+    const open = indexedDB.open('elogic-planner', 1);
+    open.onupgradeneeded = () => open.result.createObjectStore('templates');
+    open.onerror = () => reject(open.error);
+    open.onsuccess = () => {
+      const tx = open.result.transaction('templates', mode);
+      const req = work(tx.objectStore('templates'));
+      tx.oncomplete = () => { open.result.close(); resolve(req.result); };
+      tx.onerror = () => { open.result.close(); reject(tx.error); };
+    };
+  });
+}
+
+async function loadCustomTemplates() {
+  for (const [kind] of PLAN_DOCS) {
+    try {
+      const saved = await templateStore('readonly', (s) => s.get(kind));
+      if (saved) planCustom[kind] = saved;
+    } catch (e) { /* storage blocked: the defaults still work */ }
+  }
+}
+
+const xmlText = (xml) => xml.replace(/<[^>]+>/g, '');
+
+async function checkTemplate(kind, file) {
+  const wantXlsx = kind === 'report';
+  if (!file.name.toLowerCase().endsWith(wantXlsx ? '.xlsx' : '.docx')) return { error: `Please upload a ${wantXlsx ? '.xlsx' : '.docx'} file.` };
+  if (file.size > TEMPLATE_LIMIT) return { error: 'That file is over 10 MB.' };
+  const buffer = await file.arrayBuffer();
+  const warnings = [];
+  let parts;
+  try {
+    const PizZip = await loadPizZip();
+    parts = new PizZip(buffer);
+  } catch (e) {
+    return { error: 'That file couldn’t be opened. It may be damaged.' };
+  }
+  const texts = Object.values(parts.files).filter((f) => !f.dir && /\.(xml|rels)$/.test(f.name)).map((f) => xmlText(f.asText()));
+  if (texts.some((t) => OLD_BRANDING.test(t))) warnings.push('This file mentions another institute. Please remove it before using this template.');
+  if (wantXlsx) {
+    const path = marksSheetPath(parts);
+    if (!path || !reportStart(parseXml(parts.file(path).asText()), sharedStrings(parts))) {
+      return { error: 'This needs a sheet named Marks Sheet with the Bloom\'s Level row, as in the blank template.' };
+    }
+  } else {
+    const { default: Docxtemplater } = await import(DOCXTEMPLATER);
+    try {
+      new Docxtemplater(parts, { paragraphLoop: true, linebreaks: true });
+    } catch (e) {
+      const first = (e.properties && e.properties.errors && e.properties.errors[0]) || e;
+      const detail = first.properties && first.properties.explanation;
+      return { error: `A marked field isn't written correctly. ${detail || first.message}` };
+    }
+    const text = xmlText(parts.file('word/document.xml').asText());
+    if (!/\{[#/]?[\w.]+\}/.test(text)) warnings.push('No marked fields found, so every subject would get the same document.');
+  }
+  return { warnings };
+}
+
+// ------------------------------------------------------------------ filling a template for one subject
+
+async function subjectFields(code) {
+  if (!planFields.has(code)) {
+    const res = await fetch(`${PLAN_DIR}fields/${code}.json`);
+    if (!res.ok) throw new Error(`No field data for ${code}`);
+    planFields.set(code, await res.json());
+  }
+  return planFields.get(code);
+}
+
+async function fillDocx(blob, fields) {
+  const [PizZip, { default: Docxtemplater }] = await Promise.all([loadPizZip(), import(DOCXTEMPLATER)]);
+  const doc = new Docxtemplater(new PizZip(await blob.arrayBuffer()), { paragraphLoop: true, linebreaks: true, nullGetter: () => '' });
+  doc.render(fields);
+  return doc.getZip().generate({ type: 'blob', mimeType: DOCX_TYPE });
+}
+
+// Reports are filled by editing the workbook's XML in place, so its formulas, formats and rules stay exactly as saved.
+const SHEET_NS = 'http://schemas.openxmlformats.org/spreadsheetml/2006/main';
+const parseXml = (text) => new DOMParser().parseFromString(text, 'application/xml');
+const toXml = (doc) => {
+  const xml = new XMLSerializer().serializeToString(doc);
+  return xml.startsWith('<?xml') ? xml : `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n${xml}`;
+};
+const escapeXml = (text) => text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+const tagged = (node, name) => [...node.getElementsByTagNameNS(SHEET_NS, name)];
+
+function marksSheetPath(zip) {
+  const book = zip.file('xl/workbook.xml');
+  const rels = zip.file('xl/_rels/workbook.xml.rels');
+  if (!book || !rels) return null;
+  const sheet = tagged(parseXml(book.asText()), 'sheet').find((n) => n.getAttribute('name') === 'Marks Sheet');
+  if (!sheet) return null;
+  const id = sheet.getAttribute('r:id');
+  const rel = [...parseXml(rels.asText()).documentElement.children].find((n) => n.getAttribute('Id') === id);
+  const target = rel && rel.getAttribute('Target');
+  return target ? target.replace(/^\/?(xl\/)?/, 'xl/') : null;
+}
+
+function sharedStrings(zip) {
+  const file = zip.file('xl/sharedStrings.xml');
+  return file ? tagged(parseXml(file.asText()), 'si').map((si) => tagged(si, 't').map((t) => t.textContent).join('')) : [];
+}
+
+// The first student row: the one under the Bloom's Level label.
+function reportStart(sheet, strings) {
+  const label = tagged(sheet, 'c').find((c) => {
+    const value = tagged(c, 'v')[0];
+    const text = c.getAttribute('t') === 's' && value ? strings[Number(value.textContent)] : tagged(c, 't').map((t) => t.textContent).join('');
+    return text === 'Bloom\'s Level';
+  });
+  return label ? Number(label.getAttribute('r').replace(/\D/g, '')) + 1 : null;
+}
+
+function setSheetCell(sheet, ref, value) {
+  const cell = tagged(sheet, 'c').find((c) => c.getAttribute('r') === ref);
+  if (!cell) throw new Error(`The template has no cell ${ref}`);
+  cell.replaceChildren();
+  cell.removeAttribute('t');
+  if (typeof value === 'number') {
+    cell.append(Object.assign(sheet.createElementNS(SHEET_NS, 'v'), { textContent: String(value) }));
+    return;
+  }
+  cell.setAttribute('t', 'inlineStr');
+  const text = sheet.createElementNS(SHEET_NS, 't');
+  text.textContent = value;
+  const inline = sheet.createElementNS(SHEET_NS, 'is');
+  inline.append(text);
+  cell.append(inline);
+}
+
+async function fillReport(blob, fields) {
+  const PizZip = await loadPizZip();
+  const zip = new PizZip(await blob.arrayBuffer());
+  const { cells, students } = fields.report;
+  // Text sits in the shared list in files Excel saved, and in each sheet in others.
+  for (const file of Object.values(zip.files).filter((f) => /^xl\/(sharedStrings|worksheets\/[^/]+)\.xml$/.test(f.name))) {
+    zip.file(file.name, file.asText().replace(/\{(\w+)\}/g, (all, key) => (key in cells ? escapeXml(cells[key]) : all)));
+  }
+  const strings = sharedStrings(zip);
+  const path = marksSheetPath(zip);
+  const sheet = parseXml(zip.file(path).asText());
+  const start = reportStart(sheet, strings);
+  students.forEach((s, i) => {
+    [i + 1, s.section, s.name, s.roll, ...s.marks].forEach((value, c) => setSheetCell(sheet, `${'ABCDEFGHIJ'[c]}${start + i}`, value));
+  });
+  zip.file(path, toXml(sheet));
+  // Excel works out every formula again when the file opens.
+  const book = parseXml(zip.file('xl/workbook.xml').asText());
+  const calc = tagged(book, 'calcPr')[0] || book.documentElement.appendChild(book.createElementNS(SHEET_NS, 'calcPr'));
+  calc.setAttribute('fullCalcOnLoad', '1');
+  zip.file('xl/workbook.xml', toXml(book));
+  return zip.generate({ type: 'blob', mimeType: XLSX_TYPE, compression: 'DEFLATE' });
+}
+
+// One document for a subject: built from an uploaded template if there is one, otherwise the reviewed file.
+async function planBlob({ code, kind, name }) {
+  const custom = planCustom[kind];
+  if (custom) {
+    const fields = await subjectFields(code);
+    return kind === 'report' ? fillReport(custom.blob, fields) : fillDocx(custom.blob, fields);
+  }
+  const res = await fetch(PLAN_DIR + name);
+  if (!res.ok) throw new Error(name);
+  return res.blob();
+}
+
+function saveBlob(blob, name) {
+  const url = URL.createObjectURL(blob);
+  el('a', { href: url, download: name }).click();
+  setTimeout(() => URL.revokeObjectURL(url), 10000);
+}
+
+async function downloadPlanFile(file) {
+  $('plan-status').textContent = `Building ${file.name}…`;
+  try {
+    saveBlob(await planBlob(file), file.name);
+    $('plan-status').textContent = `${file.name} is ready.`;
+  } catch (e) {
+    $('plan-status').textContent = `${file.name} couldn’t be built from your template. Check its marked fields, or restore the default.`;
+  }
+}
+
+const planSubjects = () => data.curriculum.filter((c) => planIndex[c['Subject Code']]);
+
+function fillPlanSubjects() {
+  const sem = Number($('plan-sem').value);
+  const rows = planSubjects().filter((c) => !sem || c.Semester === sem);
+  $('plan-subject').replaceChildren(el('option', { value: '', text: `All subjects (${rows.length})` }),
+    ...rows.map((c) => el('option', { value: c['Subject Code'], text: `${c['Subject Code']} ${c.Subject}` })));
+}
+
+function clearPlanResults() {
+  $('plan-results').hidden = true;
+  const picked = PLAN_DOCS.some(([kind]) => $(`plan-${kind}`).checked);
+  $('plan-generate').disabled = !picked;
+}
+
+function generatePlan() {
+  const sem = Number($('plan-sem').value);
+  const code = $('plan-subject').value;
+  const kinds = PLAN_DOCS.filter(([kind]) => $(`plan-${kind}`).checked);
+  const rows = planSubjects().filter((c) => (!sem || c.Semester === sem) && (!code || c['Subject Code'] === code));
+  planFiles = [];
+  const head = el('tr', {}, ['Subject', 'Professor', 'Sem', 'Credits', 'Assessment', ...kinds.map(([, label]) => label)]
+    .map((text) => el('th', { text })));
+  const body = rows.map((c) => el('tr', {},
+    el('td', {}, el('strong', { text: c['Subject Code'] }), ` ${c.Subject}`),
+    el('td', { text: facultyName(c['Faculty ID']) }),
+    el('td', { text: String(c.Semester) }),
+    el('td', { text: String(c.Credits) }),
+    el('td', {}, tag(c.Assessment)),
+    kinds.map(([kind]) => {
+      const name = planIndex[c['Subject Code']][kind];
+      if (!name) return el('td', { class: 'plan-none', text: 'Not available yet' });
+      const file = { code: c['Subject Code'], kind, name };
+      planFiles.push(file);
+      if (!planCustom[kind]) return el('td', {}, el('a', { href: PLAN_DIR + name, download: true }, icon('download'), ' Download'));
+      return el('td', {}, el('button', { class: 'btn-link', type: 'button', onclick: () => downloadPlanFile(file) }, icon('download'), ' Download'),
+        el('small', { class: 'plan-custom', text: 'Your template' }));
+    })));
+  $('plan-table').replaceChildren(el('thead', {}, head), el('tbody', {}, body));
+  $('plan-status').textContent = `${plural(planFiles.length, 'document')} for ${plural(rows.length, 'subject')}.`;
+  $('plan-zip').disabled = !planFiles.length;
+  $('plan-results').hidden = false;
+}
+
+async function downloadPlanZip() {
+  const button = $('plan-zip');
+  button.disabled = true;
+  $('plan-status').textContent = 'Preparing the ZIP…';
+  try {
+    const { default: JSZip } = await import(JSZIP);
+    const zip = new JSZip();
+    await Promise.all(planFiles.map(async (file) => zip.file(file.name, await planBlob(file))));
+    saveBlob(await zip.generateAsync({ type: 'blob' }), 'E-Logic_Course_Documents.zip');
+    $('plan-status').textContent = `ZIP ready with ${plural(planFiles.length, 'document')}.`;
+  } catch (e) {
+    $('plan-status').textContent = 'The ZIP couldn’t be made. Please use the individual downloads.';
+  }
+  button.disabled = false;
+}
+
+// ------------------------------------------------------------------ templates tab
+
+function showPlanTab(tab) {
+  const templates = tab === 'templates';
+  $('plan-panel-generate').hidden = templates;
+  $('plan-panel-templates').hidden = !templates;
+  $('plan-tab-generate').setAttribute('aria-selected', String(!templates));
+  $('plan-tab-templates').setAttribute('aria-selected', String(templates));
+}
+
+async function activeTemplate(kind) {
+  if (planCustom[kind]) return planCustom[kind].blob;
+  const res = await fetch(`${PLAN_DIR}templates/${PLAN_BLANKS[kind]}`);
+  if (!res.ok) throw new Error(PLAN_BLANKS[kind]);
+  return res.blob();
+}
+
+async function previewTemplate(kind, label) {
+  const body = $('tpl-preview-body');
+  $('tpl-preview').hidden = false;
+  $('tpl-preview-title').textContent = `${label} preview`;
+  $('tpl-preview-note').textContent = kind === 'report' ? 'First rows of each sheet.' : 'Word’s layout is only approximate here. Download the file for the exact version.';
+  body.replaceChildren(el('p', { class: 'fine', text: 'Loading…' }));
+  try {
+    const blob = await activeTemplate(kind);
+    if (kind === 'report') {
+      const ExcelJS = await loadExcel();
+      const book = new ExcelJS.Workbook();
+      await book.xlsx.load(await blob.arrayBuffer());
+      const shown = [];
+      book.eachSheet((sheet) => {
+        const rows = [];
+        sheet.eachRow((row, n) => {
+          if (n > 14) return;
+          const cells = Array.from({ length: sheet.columnCount }, (_, i) => row.getCell(i + 1));
+          // A merged block shows its text once, and formulas show as blank until the file is opened.
+          rows.push(el('tr', {}, cells.map((c) => {
+            const shown = (c.isMerged && c.master !== c) || c.value == null || typeof c.value === 'object' ? '' : String(c.value);
+            return el('td', { text: shown });
+          })));
+        });
+        shown.push(el('h3', { class: 'tpl-sheet', text: sheet.name }), el('div', { class: 'table-card table-scroll' }, el('table', { class: 'dt dt-compact' }, el('tbody', {}, rows))));
+      });
+      body.replaceChildren(...shown);
+    } else {
+      const mammoth = await loadScript(MAMMOTH, 'mammoth');
+      const { value } = await mammoth.convertToHtml({ arrayBuffer: await blob.arrayBuffer() });
+      // Uploaded files are shown in a sandbox with no scripts.
+      const frame = el('iframe', { class: 'tpl-frame', title: `${label} preview`, sandbox: '' });
+      frame.srcdoc = `<!doctype html><meta charset="utf-8"><style>body{font:15px/1.5 Georgia,serif;color:#222;background:#fff;margin:24px}table{border-collapse:collapse;width:100%}td,th{border:1px solid #bbb;padding:6px;vertical-align:top}img{max-width:220px}</style>${value}`;
+      body.replaceChildren(frame);
+    }
+    $('tpl-preview').scrollIntoView({ behavior: 'smooth' });
+  } catch (e) {
+    body.replaceChildren(el('p', { class: 'fine', text: 'This preview couldn’t be shown. You can still download the file.' }));
+  }
+}
+
+async function uploadTemplate(kind, file, message) {
+  message.textContent = 'Checking the file…';
+  message.className = 'tpl-msg';
+  try {
+    const { error, warnings = [] } = await checkTemplate(kind, file);
+    if (error) { message.textContent = error; message.className = 'tpl-msg is-error'; return; }
+    const saved = { name: file.name, blob: new Blob([file], { type: file.type }), savedAt: new Date().toISOString(), warnings };
+    await templateStore('readwrite', (s) => s.put(saved, kind));
+    planCustom[kind] = saved;
+    clearPlanResults();
+    renderTemplates();
+  } catch (e) {
+    message.textContent = 'This file couldn’t be saved in this browser.';
+    message.className = 'tpl-msg is-error';
+  }
+}
+
+async function restoreTemplate(kind) {
+  try { await templateStore('readwrite', (s) => s.delete(kind)); } catch (e) { /* nothing was stored */ }
+  delete planCustom[kind];
+  clearPlanResults();
+  renderTemplates();
+}
+
+function renderTemplates() {
+  $('tpl-grid').replaceChildren(...PLAN_DOCS.map(([kind, label]) => {
+    const custom = planCustom[kind];
+    const excel = kind === 'report';
+    const message = el('p', { class: 'tpl-msg', role: 'status' });
+    const input = el('input', { type: 'file', accept: excel ? '.xlsx' : '.docx', hidden: true, 'aria-label': `Upload ${label} template`, id: `tpl-file-${kind}`,
+      onchange: (e) => { if (e.target.files[0]) uploadTemplate(kind, e.target.files[0], message); e.target.value = ''; } });
+    return el('article', { class: 'tpl-card' },
+      el('h3', { text: label }),
+      el('p', { class: 'tpl-meta', text: excel ? 'Excel template' : 'Word template' }),
+      el('p', { class: 'tpl-version' }, custom ? el('strong', { text: 'Your template: ' }) : el('strong', { text: 'E-Logic default' }), custom ? custom.name : ''),
+      (custom ? custom.warnings : []).map((text) => el('p', { class: 'tpl-msg is-warning', text })),
+      message,
+      el('div', { class: 'tpl-actions' },
+        el('button', { class: 'btn btn-outline btn-sm', type: 'button', text: 'Preview', onclick: () => previewTemplate(kind, label) }),
+        el('a', { class: 'btn btn-outline btn-sm', href: `${PLAN_DIR}templates/${PLAN_BLANKS[kind]}`, download: true, text: 'Download blank' }),
+        custom ? el('button', { class: 'btn btn-outline btn-sm', type: 'button', text: 'Download yours', onclick: () => saveBlob(custom.blob, custom.name) }) : null,
+        el('button', { class: 'btn btn-primary btn-sm', type: 'button', text: 'Upload new', onclick: () => input.click() }),
+        custom ? el('button', { class: 'btn-link', type: 'button', text: 'Restore default', onclick: () => restoreTemplate(kind) }) : null),
+      input);
+  }));
+}
+
+async function renderPlanner() {
+  $('plan-tab-generate').addEventListener('click', () => { location.hash = 'planner'; });
+  $('plan-tab-templates').addEventListener('click', () => { location.hash = 'planner/templates'; });
+  $('tpl-preview-close').addEventListener('click', () => { $('tpl-preview').hidden = true; });
+  await loadCustomTemplates();
+  renderTemplates();
+  try {
+    planIndex = await (await fetch(`${PLAN_DIR}index.json`)).json();
+  } catch (e) {
+    $('plan-note').textContent = 'The course documents couldn’t be loaded.';
+    $('plan-generate').disabled = true;
+    return;
+  }
+  const rows = planSubjects();
+  $('plan-program').append(el('option', { text: 'BBA' }));
+  $('plan-sem').append(el('option', { value: '', text: 'All semesters' }),
+    ...[...new Set(rows.map((c) => c.Semester))].map((s) => el('option', { value: s, text: `Semester ${s}` })));
+  fillPlanSubjects();
+  $('plan-note').textContent = `${plural(rows.length, 'sample subject')} available so far, with more to come. `
+    + 'All documents are drafts for faculty review, and marks in the AoL Report are dummy data.';
+  $('plan-sem').addEventListener('change', () => { fillPlanSubjects(); clearPlanResults(); });
+  $('plan-subject').addEventListener('change', clearPlanResults);
+  for (const [kind] of PLAN_DOCS) $(`plan-${kind}`).addEventListener('change', clearPlanResults);
+  $('plan-generate').addEventListener('click', generatePlan);
+  $('plan-zip').addEventListener('click', downloadPlanZip);
+}
+
 const newKb = () => ({ files: [], chunks: [], index: null, full: true, ready: null });
 const newChat = () => ({ history: [], count: 0, asked: 0 });
 const SOURCES = {
@@ -834,6 +1244,7 @@ async function start() {
   renderCurriculum();
   renderFaculty();
   renderStudents();
+  renderPlanner();
   renderStarters();
   switchSource(session.get('elogic.source') === 'mine' ? 'mine' : 'elogic');
   addEventListener('hashchange', route);

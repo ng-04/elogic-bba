@@ -471,3 +471,41 @@ svg { width: 20px; height: 20px; flex-shrink: 0; }
   *, *::before, *::after { animation: none !important; transition: none !important; }
   html { scroll-behavior: auto; }
 }
+
+/* Course Planner */
+.plan-docs { display: flex; flex-wrap: wrap; gap: 8px 20px; border: 0; padding: 0; margin: 0 0 18px; }
+.plan-docs legend { font-size: 13px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; margin-bottom: 8px; padding: 0; }
+.plan-docs label { display: inline-flex; align-items: center; gap: 8px; font-size: 15px; }
+#plan-results { margin-top: 24px; }
+#plan-table svg { width: 15px; height: 15px; vertical-align: -2px; }
+.plan-none { color: var(--muted); font-size: 14px; }
+.plan-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 14px; margin-top: 16px; }
+.plan-actions .fine { margin: 0; }
+[data-view="planner"] .select { max-width: 100%; }
+#plan-subject { min-width: 0; max-width: 100%; text-overflow: ellipsis; }
+#plan-table a { white-space: nowrap; }
+
+.plan-tabs { margin-bottom: 24px; }
+.plan-intro { max-width: 760px; margin: 0 0 10px; }
+.plan-custom { display: block; font-size: 12px; color: var(--muted); }
+#plan-table .btn-link { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
+.tpl-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 18px; margin-top: 20px; }
+.tpl-card { display: flex; flex-direction: column; gap: 6px; padding: 20px; background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); }
+.tpl-card h3 { margin: 0; }
+.tpl-meta, .tpl-version { margin: 0; font-size: 14px; color: var(--muted); overflow-wrap: anywhere; }
+.tpl-msg { margin: 0; font-size: 14px; color: var(--muted); }
+.tpl-msg:empty { display: none; }
+.tpl-msg.is-error { color: var(--red); }
+.tpl-msg.is-warning { color: #8a5d00; }
+.tpl-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: auto; padding-top: 12px; }
+#tpl-preview { margin-top: 28px; }
+#tpl-preview .plan-actions { justify-content: space-between; margin-top: 0; }
+#tpl-preview .fine { margin: 6px 0 12px; }
+.tpl-frame { width: 100%; height: 560px; border: 1px solid var(--line); border-radius: var(--radius); background: #fff; }
+.tpl-sheet { margin: 16px 0 8px; font-size: 15px; }
+
+/* Seven menu items only fit on one line beside the logo tagline from 1241px up. */
+.primary-nav > a, .has-mega > a, .brand-text small { white-space: nowrap; }
+@media (min-width: 1081px) and (max-width: 1240px) {
+  .masthead .brand-text small { display: none; }
+}

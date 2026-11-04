@@ -86,6 +86,7 @@
       <a href="#faculty" data-route="faculty">Faculty</a>
       <a href="#students" data-route="students">Students</a>
       <a href="#handbook" data-route="handbook">Handbook</a>
+      <a href="#planner" data-route="planner">Course Planner</a>
       <a href="#ask" data-route="ask" class="nav-ask"><svg><use href="#i-chat"/></svg> Ask E-Logic</a>
     </nav>
   </div>
@@ -234,6 +235,50 @@
 </section>
 
 <!-- =============================================================== HANDBOOK -->
+<section class="view" data-view="planner" hidden>
+  <div class="page-hero" style="--img:url('https://images.unsplash.com/photo-1606761568499-6d2451b23c66?w=1800&q=70&auto=format&fit=crop')">
+    <div class="wrap"><p class="crumbs"><a href="#ask">E-Logic</a> / Course Planner</p><h1>Course Planner</h1><p>From course outline to AoL report: the planning documents for each subject, built from the master data.</p></div>
+  </div>
+  <div class="wrap page-body">
+    <div class="seg plan-tabs" role="tablist" aria-label="Course Planner">
+      <button role="tab" type="button" id="plan-tab-generate">Generate documents</button>
+      <button role="tab" type="button" id="plan-tab-templates">Templates</button>
+    </div>
+    <div id="plan-panel-generate">
+    <div class="toolbar">
+      <label class="select"><span>Program</span><select id="plan-program"></select></label>
+      <label class="select"><span>Semester</span><select id="plan-sem"></select></label>
+      <label class="select"><span>Subject</span><select id="plan-subject"></select></label>
+    </div>
+    <fieldset class="plan-docs">
+      <legend>Documents</legend>
+      <label><input type="checkbox" id="plan-outline" checked> Course Outline</label>
+      <label><input type="checkbox" id="plan-aol" checked> AoL Plan</label>
+      <label><input type="checkbox" id="plan-report" checked> AoL Report</label>
+    </fieldset>
+    <button class="btn btn-primary" type="button" id="plan-generate">Generate documents</button>
+    <p class="fine" id="plan-note"></p>
+    <div id="plan-results" hidden>
+      <div class="table-card table-scroll"><table class="dt" id="plan-table"></table></div>
+      <div class="plan-actions">
+        <button class="btn btn-outline" type="button" id="plan-zip"><svg><use href="#i-download"/></svg> <span id="plan-zip-label">Download all as ZIP</span></button>
+        <span class="fine" id="plan-status" role="status"></span>
+      </div>
+    </div>
+    </div>
+    <div id="plan-panel-templates" hidden>
+      <p class="plan-intro">Download a blank template, edit it in Word or Excel, then upload it. Words in {curly brackets} are marked fields, filled in for each subject. Keep them where you want that information to appear.</p>
+      <p class="fine plan-intro">Uploaded templates are saved in this browser only, and other people won't see them. While one is in use, Generate documents builds that document from your template.</p>
+      <div class="tpl-grid" id="tpl-grid"></div>
+      <div id="tpl-preview" hidden>
+        <div class="plan-actions"><strong id="tpl-preview-title"></strong><button class="btn-link" type="button" id="tpl-preview-close">Close preview</button></div>
+        <p class="fine" id="tpl-preview-note"></p>
+        <div id="tpl-preview-body"></div>
+      </div>
+    </div>
+  </div>
+</section>
+
 <section class="view" data-view="handbook" hidden>
   <div class="page-hero" style="--img:url('https://images.unsplash.com/photo-1531482615713-2afd69097998?w=1800&q=70&auto=format&fit=crop')">
     <div class="wrap"><p class="crumbs"><a href="#ask">E-Logic</a> / Handbook</p><h1>Documents</h1><p>The two documents behind this site and behind every answer from Ask E-Logic.</p></div>

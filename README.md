@@ -12,6 +12,10 @@ pages are:
 - **Student Master**: KPIs, state and specialisation breakdowns, attendance flags and a
   searchable table.
 - **Handbook**: the 10-page student handbook (PDF) and the master-data workbook (XLSX).
+- **Course Planner**: pick a program, semester and subject (or all) to get each subject's Course
+  Outline, AoL Plan and AoL Report. The files are pre-generated in `docs/course-docs/`, three sample
+  subjects so far. The Templates tab shows the blank templates; an uploaded template is saved in that
+  browser only and fills the documents there from `docs/course-docs/fields/`.
 
 Every name, number and date here is made up.
 
