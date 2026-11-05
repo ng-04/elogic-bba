@@ -1,8 +1,8 @@
 """Publishes the finished course documents to docs/course-docs/ for the Course Planner page.
 
-Run after build.py and build_marks.py:  python data/course_docs/publish.py
+Run after build.py:  python data/course_docs/publish.py
 Writes the files, index.json (what exists for each subject) and fields/<code>.json (what fills an
-uploaded template in the browser). Needs python-docx, Pillow and openpyxl.
+uploaded template in the browser). Needs python-docx and Pillow.
 """
 import json
 import re
@@ -11,13 +11,11 @@ import zipfile
 from pathlib import Path
 
 from build import subject_fields
-from build_marks import BATCH, report_fields
 
 ROOT = Path(__file__).resolve().parents[2]
 SOURCE = ROOT / "data" / "outgoing"
 TARGET = ROOT / "docs" / "course-docs"
-FILES = {"outline": "{}_Course_Outline.docx", "aol": "{}_AoL_Plan.docx", "report": "{}_MidTerm_Marks_Sheet.xlsx"}
-
+FILES = {"outline": "{}_Course_Outline.docx", "aol": "{}_AoL_Plan.docx", "report": "{}_AoL_Report.docx", "marks": "{}_Marks_Sheet.xlsx"}
 
 
 def strip_excel_traces(path):
@@ -39,7 +37,6 @@ def strip_excel_traces(path):
 
 TARGET.mkdir(exist_ok=True)
 (TARGET / "fields").mkdir(exist_ok=True)
-data = json.loads((ROOT / "site-data.json").read_text())
 index = {}
 for content in sorted((Path(__file__).parent / "content").glob("[A-Z]*[0-9]*.json")):
     code = content.stem
@@ -51,10 +48,6 @@ for content in sorted((Path(__file__).parent / "content").glob("[A-Z]*[0-9]*.jso
             if name.endswith(".xlsx"):
                 strip_excel_traces(TARGET / name)
             index[code][kind] = name
-    fields = subject_fields(code)
-    if "report" in index[code]:
-        students = sorted((s for s in data["students"] if s["Batch"] == BATCH), key=lambda s: (s["Section"], s["Student ID"]))
-        fields["report"] = report_fields(students, json.loads(content.read_text())["clos"])
-    (TARGET / "fields" / f"{code}.json").write_text(json.dumps(fields, indent=1, ensure_ascii=False) + "\n")
+    (TARGET / "fields" / f"{code}.json").write_text(json.dumps(subject_fields(code), indent=1, ensure_ascii=False) + "\n")
 (TARGET / "index.json").write_text(json.dumps(index, indent=2) + "\n")
 print(json.dumps(index, indent=2))

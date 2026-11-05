@@ -63,7 +63,13 @@
    "mode": "Mid-Term Examination: valuation and time value of money problems (Quiz 1 as a supporting measure)",
    "exceed": "Selects the right method without prompting, computes values accurately, and explains what the result means for an investor or manager.",
    "meet": "Selects the right method and reaches a substantially correct value, with minor computational slips and a basic interpretation.",
-   "below": "Selects the wrong method or makes major computational errors, and cannot interpret the result."
+   "below": "Selects the wrong method or makes major computational errors, and cannot interpret the result.",
+   "exceed_n": "9",
+   "exceed_pct": "23.7%",
+   "meet_n": "28",
+   "meet_pct": "73.7%",
+   "below_n": "1",
+   "below_pct": "2.6%"
   },
   {
    "n": 2,
@@ -73,7 +79,13 @@
    "mode": "End-Term Examination: capital budgeting problem (Quiz 2 as a supporting measure)",
    "exceed": "Identifies all relevant cash flows, applies NPV, IRR and related measures correctly, tests key assumptions, and justifies a clear recommendation.",
    "meet": "Identifies most relevant cash flows, applies the main techniques correctly, and gives a recommendation consistent with the results.",
-   "below": "Includes irrelevant cash flows or misses major ones, misapplies the techniques, or gives a recommendation not supported by the analysis."
+   "below": "Includes irrelevant cash flows or misses major ones, misapplies the techniques, or gives a recommendation not supported by the analysis.",
+   "exceed_n": "12",
+   "exceed_pct": "30.0%",
+   "meet_n": "20",
+   "meet_pct": "50.0%",
+   "below_n": "8",
+   "below_pct": "20.0%"
   },
   {
    "n": 3,
@@ -83,7 +95,13 @@
    "mode": "End-Term Examination: integrative case-based question",
    "exceed": "Links financing, dividend and investment decisions, assesses the impact of market conditions on each, and critically weighs alternatives.",
    "meet": "Explains the main links between the decisions, notes the effect of market conditions, and reaches a reasonable conclusion.",
-   "below": "Treats each decision in isolation, ignores the external environment, or reaches a conclusion without reasoning."
+   "below": "Treats each decision in isolation, ignores the external environment, or reaches a conclusion without reasoning.",
+   "exceed_n": "8",
+   "exceed_pct": "20.0%",
+   "meet_n": "19",
+   "meet_pct": "47.5%",
+   "below_n": "13",
+   "below_pct": "32.5%"
   },
   {
    "n": 4,
@@ -93,9 +111,17 @@
    "mode": "Case Analysis: individual written report",
    "exceed": "The report is well structured and concise, leads with the recommendation, and supports it with accurate figures and well-presented exhibits.",
    "meet": "The report is organised and readable, states a recommendation, and supports it with relevant figures.",
-   "below": "The report is disorganised or unclear, the recommendation is missing or vague, or the figures do not support it."
+   "below": "The report is disorganised or unclear, the recommendation is missing or vague, or the figures do not support it.",
+   "exceed_n": "10",
+   "exceed_pct": "25.0%",
+   "meet_n": "25",
+   "meet_pct": "62.5%",
+   "below_n": "5",
+   "below_pct": "12.5%"
   }
  ],
+ "results_note": "Dummy data: these results are illustrative and do not come from real student marks.",
+ "results_rule": "Exceed Expectation is 75% or more of the marks for that CLO, Meet Expectation is 50% up to 75%, and Does not meet Expectation is below 50%.",
  "components": [
   {
    "name": "Quiz 1",
@@ -216,420 +242,5 @@
  "plg5_addressed": "No",
  "plg5_clos": "-",
  "plg6_addressed": "No",
- "plg6_clos": "-",
- "report": {
-  "cells": {
-   "exam_event": "E-LOGIC BLR UG MID-TERM 2026-27",
-   "program": "BBA",
-   "subject": "[BBA302] Financial Management",
-   "exam_date": "15Sep2026 (02:00 PM - 03:00 PM)",
-   "paper_title": "Financial Management [Answer 3 / 3]",
-   "summary_title": "BBA302 Financial Management: Mid-Term AoL Summary (dummy data)",
-   "report_note": "All names, roll numbers, marks and the exam date are dummy data.",
-   "co1_text": "Apply time value of money, risk and return, and valuation concepts to price bonds, shares and business cash flows.",
-   "co3_text": "Assess how cost of capital, leverage, capital structure and dividend decisions interact to affect firm value under changing market conditions."
-  },
-  "students": [
-   {
-    "section": "A",
-    "name": "Aishwarya Patil",
-    "roll": "EL25BBA001",
-    "marks": [
-     7.5,
-     3.0,
-     4.5
-    ]
-   },
-   {
-    "section": "A",
-    "name": "Rhea Baruah",
-    "roll": "EL25BBA002",
-    "marks": [
-     7.0,
-     4.0,
-     10.0
-    ]
-   },
-   {
-    "section": "A",
-    "name": "Riya Iyer",
-    "roll": "EL25BBA003",
-    "marks": [
-     5.5,
-     4.5,
-     9.0
-    ]
-   },
-   {
-    "section": "A",
-    "name": "Dhruv Pillai",
-    "roll": "EL25BBA004",
-    "marks": [
-     5.0,
-     4.0,
-     7.5
-    ]
-   },
-   {
-    "section": "A",
-    "name": "Abhinav Raman",
-    "roll": "EL25BBA005",
-    "marks": [
-     6.0,
-     3.5,
-     7.5
-    ]
-   },
-   {
-    "section": "A",
-    "name": "Aishwarya Pawar",
-    "roll": "EL25BBA006",
-    "marks": [
-     5.5,
-     4.0,
-     5.5
-    ]
-   },
-   {
-    "section": "A",
-    "name": "Aarav Malhotra",
-    "roll": "EL25BBA007",
-    "marks": [
-     "AB",
-     "AB",
-     "AB"
-    ]
-   },
-   {
-    "section": "A",
-    "name": "Ananya Varghese",
-    "roll": "EL25BBA008",
-    "marks": [
-     4.0,
-     3.0,
-     10.5
-    ]
-   },
-   {
-    "section": "A",
-    "name": "Aditya Bhat",
-    "roll": "EL25BBA009",
-    "marks": [
-     4.5,
-     3.0,
-     4.5
-    ]
-   },
-   {
-    "section": "A",
-    "name": "Aniket Thomas",
-    "roll": "EL25BBA010",
-    "marks": [
-     6.0,
-     2.5,
-     6.0
-    ]
-   },
-   {
-    "section": "A",
-    "name": "Lavanya Reddy",
-    "roll": "EL25BBA011",
-    "marks": [
-     7.0,
-     3.0,
-     6.0
-    ]
-   },
-   {
-    "section": "A",
-    "name": "Lavanya Bhat",
-    "roll": "EL25BBA012",
-    "marks": [
-     5.0,
-     2.5,
-     5.5
-    ]
-   },
-   {
-    "section": "A",
-    "name": "Abhinav Naidu",
-    "roll": "EL25BBA013",
-    "marks": [
-     8.0,
-     3.5,
-     13.5
-    ]
-   },
-   {
-    "section": "A",
-    "name": "Dhruv Sharma",
-    "roll": "EL25BBA014",
-    "marks": [
-     5.0,
-     4.5,
-     10.5
-    ]
-   },
-   {
-    "section": "A",
-    "name": "Mahima Shetty",
-    "roll": "EL25BBA015",
-    "marks": [
-     7.5,
-     4.5,
-     8.0
-    ]
-   },
-   {
-    "section": "A",
-    "name": "Manav Bhat",
-    "roll": "EL25BBA016",
-    "marks": [
-     8.0,
-     3.0,
-     7.5
-    ]
-   },
-   {
-    "section": "A",
-    "name": "Ira Menon",
-    "roll": "EL25BBA017",
-    "marks": [
-     5.5,
-     4.0,
-     8.0
-    ]
-   },
-   {
-    "section": "A",
-    "name": "Aditi Gowda",
-    "roll": "EL25BBA018",
-    "marks": [
-     9.5,
-     3.5,
-     12.5
-    ]
-   },
-   {
-    "section": "A",
-    "name": "Varun Joshi",
-    "roll": "EL25BBA019",
-    "marks": [
-     5.5,
-     3.5,
-     9.0
-    ]
-   },
-   {
-    "section": "A",
-    "name": "Sneha Reddy",
-    "roll": "EL25BBA020",
-    "marks": [
-     5.5,
-     3.0,
-     4.5
-    ]
-   },
-   {
-    "section": "B",
-    "name": "Manav Banerjee",
-    "roll": "EL25BBA021",
-    "marks": [
-     7.5,
-     4.0,
-     14.5
-    ]
-   },
-   {
-    "section": "B",
-    "name": "Dhruv Malhotra",
-    "roll": "EL25BBA022",
-    "marks": [
-     8.5,
-     3.5,
-     12.0
-    ]
-   },
-   {
-    "section": "B",
-    "name": "Keerthana Rao",
-    "roll": "EL25BBA023",
-    "marks": [
-     8.0,
-     3.5,
-     9.5
-    ]
-   },
-   {
-    "section": "B",
-    "name": "Nikhil Srivastava",
-    "roll": "EL25BBA024",
-    "marks": [
-     "AB",
-     "AB",
-     "AB"
-    ]
-   },
-   {
-    "section": "B",
-    "name": "Vivek Shetty",
-    "roll": "EL25BBA025",
-    "marks": [
-     5.0,
-     2.5,
-     6.0
-    ]
-   },
-   {
-    "section": "B",
-    "name": "Pranav Patel",
-    "roll": "EL25BBA026",
-    "marks": [
-     7.5,
-     3.5,
-     7.0
-    ]
-   },
-   {
-    "section": "B",
-    "name": "Karthik Nayak",
-    "roll": "EL25BBA027",
-    "marks": [
-     6.0,
-     4.5,
-     4.5
-    ]
-   },
-   {
-    "section": "B",
-    "name": "Aarav Varghese",
-    "roll": "EL25BBA028",
-    "marks": [
-     7.5,
-     2.5,
-     9.5
-    ]
-   },
-   {
-    "section": "B",
-    "name": "Priya Mohanty",
-    "roll": "EL25BBA029",
-    "marks": [
-     4.5,
-     3.0,
-     5.0
-    ]
-   },
-   {
-    "section": "B",
-    "name": "Trisha Hegde",
-    "roll": "EL25BBA030",
-    "marks": [
-     8.0,
-     2.5,
-     9.0
-    ]
-   },
-   {
-    "section": "B",
-    "name": "Kavya Rao",
-    "roll": "EL25BBA031",
-    "marks": [
-     6.5,
-     3.0,
-     9.5
-    ]
-   },
-   {
-    "section": "B",
-    "name": "Siddharth Malhotra",
-    "roll": "EL25BBA032",
-    "marks": [
-     10.0,
-     4.5,
-     8.5
-    ]
-   },
-   {
-    "section": "B",
-    "name": "Riya Varghese",
-    "roll": "EL25BBA033",
-    "marks": [
-     7.5,
-     3.0,
-     7.0
-    ]
-   },
-   {
-    "section": "B",
-    "name": "Priya Bhat",
-    "roll": "EL25BBA034",
-    "marks": [
-     7.0,
-     3.0,
-     4.5
-    ]
-   },
-   {
-    "section": "B",
-    "name": "Kavya Sharma",
-    "roll": "EL25BBA035",
-    "marks": [
-     6.5,
-     3.5,
-     9.5
-    ]
-   },
-   {
-    "section": "B",
-    "name": "Omkar Pawar",
-    "roll": "EL25BBA036",
-    "marks": [
-     6.5,
-     3.0,
-     6.0
-    ]
-   },
-   {
-    "section": "B",
-    "name": "Rohan Thomas",
-    "roll": "EL25BBA037",
-    "marks": [
-     9.5,
-     3.5,
-     3.5
-    ]
-   },
-   {
-    "section": "B",
-    "name": "Tejas Joshi",
-    "roll": "EL25BBA038",
-    "marks": [
-     6.5,
-     5.0,
-     10.5
-    ]
-   },
-   {
-    "section": "B",
-    "name": "Neil Malhotra",
-    "roll": "EL25BBA039",
-    "marks": [
-     4.5,
-     3.0,
-     5.5
-    ]
-   },
-   {
-    "section": "B",
-    "name": "Nandini Bhat",
-    "roll": "EL25BBA040",
-    "marks": [
-     6.0,
-     2.5,
-     8.5
-    ]
-   }
-  ]
- }
+ "plg6_clos": "-"
 }

@@ -236,20 +236,24 @@ function renderStudents() {
 // The documents are built ahead of time and reviewed; docs/course-docs/index.json lists what exists.
 const PLAN_DIR = 'docs/course-docs/';
 const PLAN_DOCS = [['outline', 'Course Outline'], ['aol', 'AoL Plan'], ['report', 'AoL Report']];
-const PLAN_BLANKS = { outline: 'E-Logic_Course_Outline_Template.docx', aol: 'E-Logic_AoL_Plan_Template.docx', report: 'E-Logic_AoL_Report_Template.xlsx' };
+const PLAN_OUTPUTS = [...PLAN_DOCS, ['marks', 'Marks Sheet']];
+const PLAN_BLANKS = { outline: 'E-Logic_Course_Outline_Template.docx', aol: 'E-Logic_AoL_Plan_Template.docx', report: 'E-Logic_AoL_Report_Template.docx' };
+// A CLO's band comes from the share of its marks a student earned. These match the marks sheet's own defaults.
+const DEFAULT_CUTOFFS = { exceed: 0.75, meet: 0.5 };
 const JSZIP = 'https://cdn.jsdelivr.net/npm/jszip@3.10.2/+esm';
 const PIZZIP = 'https://cdn.jsdelivr.net/npm/pizzip@3.3.0/+esm';
 const DOCXTEMPLATER = 'https://cdn.jsdelivr.net/npm/docxtemplater@3.71.0/+esm';
 const EXCELJS = 'https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js';
 const MAMMOTH = 'https://cdn.jsdelivr.net/npm/mammoth@1.13.0/mammoth.browser.min.js';
 const DOCX_TYPE = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
-const XLSX_TYPE = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
 const TEMPLATE_LIMIT = 10 * 1024 * 1024;
 // Old branding that must not reach E-Logic documents; encoded so this public file doesn't name it.
 const OLD_BRANDING = new RegExp(atob('dFwuPyA/YVwuPyA/cGFpfHRhcG1pfG1hbmlwYWw='), 'i');
 let planIndex = {};
 let planFiles = [];
 let planCustom = {}; // kind -> { name, blob, savedAt, warnings }: uploaded templates in this browser
+let planMarks = {}; // subject code -> { name, blob, savedAt, warnings, results, students }: uploaded marks in this browser
+let planMarksCode = '';
 const planFields = new Map();
 
 const loadScript = (src, global) => new Promise((resolve, reject) => {
@@ -282,16 +286,24 @@ async function loadCustomTemplates() {
   for (const [kind] of PLAN_DOCS) {
     try {
       const saved = await templateStore('readonly', (s) => s.get(kind));
-      if (saved) planCustom[kind] = saved;
+      if (saved && saved.name.toLowerCase().endsWith('.docx')) planCustom[kind] = saved; // an older report template was Excel
     } catch (e) { /* storage blocked: the defaults still work */ }
+  }
+}
+
+async function loadSavedMarks() {
+  for (const c of planSubjects()) {
+    try {
+      const saved = await templateStore('readonly', (s) => s.get(`marks:${c['Subject Code']}`));
+      if (saved) planMarks[c['Subject Code']] = saved;
+    } catch (e) { /* storage blocked: the reports keep their dummy results */ }
   }
 }
 
 const xmlText = (xml) => xml.replace(/<[^>]+>/g, '');
 
 async function checkTemplate(kind, file) {
-  const wantXlsx = kind === 'report';
-  if (!file.name.toLowerCase().endsWith(wantXlsx ? '.xlsx' : '.docx')) return { error: `Please upload a ${wantXlsx ? '.xlsx' : '.docx'} file.` };
+  if (!file.name.toLowerCase().endsWith('.docx')) return { error: 'Please upload a .docx file.' };
   if (file.size > TEMPLATE_LIMIT) return { error: 'That file is over 10 MB.' };
   const buffer = await file.arrayBuffer();
   const warnings = [];
@@ -304,24 +316,128 @@ async function checkTemplate(kind, file) {
   }
   const texts = Object.values(parts.files).filter((f) => !f.dir && /\.(xml|rels)$/.test(f.name)).map((f) => xmlText(f.asText()));
   if (texts.some((t) => OLD_BRANDING.test(t))) warnings.push('This file mentions another institute. Please remove it before using this template.');
-  if (wantXlsx) {
-    const path = marksSheetPath(parts);
-    if (!path || !reportStart(parseXml(parts.file(path).asText()), sharedStrings(parts))) {
-      return { error: 'This needs a sheet named Marks Sheet with the Bloom\'s Level row, as in the blank template.' };
-    }
-  } else {
-    const { default: Docxtemplater } = await import(DOCXTEMPLATER);
-    try {
-      new Docxtemplater(parts, { paragraphLoop: true, linebreaks: true });
-    } catch (e) {
-      const first = (e.properties && e.properties.errors && e.properties.errors[0]) || e;
-      const detail = first.properties && first.properties.explanation;
-      return { error: `A marked field isn't written correctly. ${detail || first.message}` };
-    }
-    const text = xmlText(parts.file('word/document.xml').asText());
-    if (!/\{[#/]?[\w.]+\}/.test(text)) warnings.push('No marked fields found, so every subject would get the same document.');
+  const { default: Docxtemplater } = await import(DOCXTEMPLATER);
+  try {
+    new Docxtemplater(parts, { paragraphLoop: true, linebreaks: true });
+  } catch (e) {
+    const first = (e.properties && e.properties.errors && e.properties.errors[0]) || e;
+    const detail = first.properties && first.properties.explanation;
+    return { error: `A marked field isn't written correctly. ${detail || first.message}` };
   }
+  const text = xmlText(parts.file('word/document.xml').asText());
+  if (!/\{[#/]?[\w.]+\}/.test(text)) warnings.push('No marked fields found, so every subject would get the same document.');
   return { warnings };
+}
+
+// ------------------------------------------------------------------ reading an uploaded marks sheet
+
+const cellText = (cell) => {
+  const { value } = cell;
+  if (value && typeof value === 'object') return String(value.result ?? (value.richText || []).map((t) => t.text).join('')).trim();
+  return value == null ? '' : String(value).trim();
+};
+
+function labelRow(sheet, label) {
+  for (let r = 1; r <= sheet.rowCount; r++) if (cellText(sheet.getCell(r, 4)) === label) return r;
+  return null;
+}
+
+// The columns tagged with a CLO, up to the merged block of totals that follows them.
+function markedColumns(sheet, outcomeRow, marksRow, cloCount) {
+  const columns = [];
+  for (let col = 5; col <= sheet.columnCount; col++) {
+    const cell = sheet.getCell(outcomeRow, col);
+    if (cell.isMerged) break;
+    const tag = cellText(cell);
+    if (!tag) continue;
+    const clo = Number((tag.match(/^(?:CL?O)?\s*(\d+)$/i) || [])[1]);
+    if (!clo || clo > cloCount) return { error: `Cell ${cell.address} says “${tag}”. This subject has CO1 to CO${cloCount}.` };
+    const most = Number(cellText(sheet.getCell(marksRow, col)));
+    if (!(most > 0)) return { error: `Cell ${cell.address} has a Course Outcome, but its column has no Question Marks.` };
+    columns.push({ col, clo, most });
+  }
+  return columns.length ? { columns } : { error: 'No column has a Course Outcome, so there is nothing to count.' };
+}
+
+/** Counts the students in each band for each CLO. Absent or empty marks count as zero unless a student has none for that CLO. */
+function bandResults(sheet, start, columns, cloCount, cutoffs) {
+  const bands = Array.from({ length: cloCount }, () => ({ exceed: 0, meet: 0, below: 0 }));
+  const seen = new Set();
+  for (let r = start; r <= sheet.rowCount; r++) {
+    const roll = cellText(sheet.getCell(r, 4));
+    if (!roll) continue;
+    if (seen.has(roll)) return { error: `Roll number ${roll} appears twice.` };
+    seen.add(roll);
+    const totals = new Map();
+    for (const { col, clo, most } of columns) {
+      const cell = sheet.getCell(r, col);
+      const text = cellText(cell);
+      const entry = totals.get(clo) || { got: 0, most: 0, marked: false };
+      entry.most += most;
+      if (text && !/^ab$/i.test(text)) {
+        const mark = Number(text);
+        if (Number.isNaN(mark) || mark < 0 || mark > most) return { error: `Cell ${cell.address} has “${text}”. Enter a mark from 0 to ${most}, or AB.` };
+        entry.got += mark;
+        entry.marked = true;
+      }
+      totals.set(clo, entry);
+    }
+    for (const [clo, { got, most, marked }] of totals) {
+      if (!marked) continue;
+      bands[clo - 1][got >= cutoffs.exceed * most ? 'exceed' : got >= cutoffs.meet * most ? 'meet' : 'below'] += 1;
+    }
+  }
+  return { bands, students: seen.size };
+}
+
+const bandFields = ({ exceed, meet, below }) => {
+  const assessed = exceed + meet + below;
+  const pct = (n) => (assessed ? `${(n / assessed * 100).toFixed(1)}%` : '-');
+  const count = (n) => (assessed ? String(n) : '-');
+  return { exceed_n: count(exceed), exceed_pct: pct(exceed), meet_n: count(meet), meet_pct: pct(meet), below_n: count(below), below_pct: pct(below) };
+};
+
+// The AoL Summary's yellow cells can change the cut-offs, and the report must agree with that sheet.
+function readCutoffs(book) {
+  const sheet = book.getWorksheet('AoL Summary');
+  if (!sheet) return { cutoffs: DEFAULT_CUTOFFS };
+  const value = (label) => {
+    for (let r = 1; r <= sheet.rowCount; r++) if (cellText(sheet.getCell(r, 1)) === label) return Number(cellText(sheet.getCell(r, 2)));
+    return null;
+  };
+  const exceed = value('Exceed Expectation: at least') ?? DEFAULT_CUTOFFS.exceed;
+  const meet = value('Meet Expectation: at least') ?? DEFAULT_CUTOFFS.meet;
+  if (!(meet > 0 && meet < exceed && exceed <= 1)) return { error: 'Check the cut-offs on the AoL Summary tab: Exceed must be above Meet, and both between 0% and 100%.' };
+  return { cutoffs: { exceed, meet } };
+}
+
+async function readMarks(code, file) {
+  if (!file.name.toLowerCase().endsWith('.xlsx')) return { error: 'Please upload a .xlsx file.' };
+  if (file.size > TEMPLATE_LIMIT) return { error: 'That file is over 10 MB.' };
+  const ExcelJS = await loadExcel();
+  const book = new ExcelJS.Workbook();
+  try {
+    await book.xlsx.load(await file.arrayBuffer());
+  } catch (e) {
+    return { error: 'That file couldn’t be opened. It may be damaged.' };
+  }
+  const sheet = book.getWorksheet('Marks Sheet');
+  const marksRow = sheet && labelRow(sheet, 'Question Marks');
+  const outcomeRow = sheet && labelRow(sheet, 'Course Outcome');
+  if (!marksRow || !outcomeRow) return { error: 'This needs a sheet named Marks Sheet with the Question Marks and Course Outcome rows, as in the blank.' };
+  const named = (cellText(sheet.getCell('C2')).match(/[A-Z]{3}\d{3}/) || [])[0];
+  if (named && named !== code) return { error: `This marks sheet is for ${named}, but ${code} is selected.` };
+  const { clos } = await subjectFields(code);
+  const { cutoffs, error: cutoffError } = readCutoffs(book);
+  if (cutoffError) return { error: cutoffError };
+  const { columns, error } = markedColumns(sheet, outcomeRow, marksRow, clos.length);
+  if (error) return { error };
+  const counted = bandResults(sheet, (labelRow(sheet, 'Bloom\'s Level') || outcomeRow) + 1, columns, clos.length, cutoffs);
+  if (counted.error) return counted;
+  if (counted.bands.every((b) => !(b.exceed + b.meet + b.below))) return { error: 'No marks found. Enter marks on the Marks Sheet, then upload it again.' };
+  const missing = clos.filter((c, i) => !(counted.bands[i].exceed + counted.bands[i].meet + counted.bands[i].below)).map((c) => `CLO${c.n}`);
+  return { results: counted.bands.map(bandFields), students: counted.students, cutoffs,
+    warnings: missing.length ? [`No marks for ${missing.join(', ')}, so the report shows a dash for ${missing.length === 1 ? 'it' : 'them'}.`] : [] };
 }
 
 // ------------------------------------------------------------------ filling a template for one subject
@@ -342,90 +458,20 @@ async function fillDocx(blob, fields) {
   return doc.getZip().generate({ type: 'blob', mimeType: DOCX_TYPE });
 }
 
-// Reports are filled by editing the workbook's XML in place, so its formulas, formats and rules stay exactly as saved.
-const SHEET_NS = 'http://schemas.openxmlformats.org/spreadsheetml/2006/main';
-const parseXml = (text) => new DOMParser().parseFromString(text, 'application/xml');
-const toXml = (doc) => {
-  const xml = new XMLSerializer().serializeToString(doc);
-  return xml.startsWith('<?xml') ? xml : `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n${xml}`;
-};
-const escapeXml = (text) => text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-const tagged = (node, name) => [...node.getElementsByTagNameNS(SHEET_NS, name)];
+const percent = (share) => `${Math.round(share * 1000) / 10}%`;
+const cutoffRule = ({ exceed, meet }) => `Exceed Expectation is ${percent(exceed)} or more of the marks for that CLO, `
+  + `Meet Expectation is ${percent(meet)} up to ${percent(exceed)}, and Does not meet Expectation is below ${percent(meet)}.`;
 
-function marksSheetPath(zip) {
-  const book = zip.file('xl/workbook.xml');
-  const rels = zip.file('xl/_rels/workbook.xml.rels');
-  if (!book || !rels) return null;
-  const sheet = tagged(parseXml(book.asText()), 'sheet').find((n) => n.getAttribute('name') === 'Marks Sheet');
-  if (!sheet) return null;
-  const id = sheet.getAttribute('r:id');
-  const rel = [...parseXml(rels.asText()).documentElement.children].find((n) => n.getAttribute('Id') === id);
-  const target = rel && rel.getAttribute('Target');
-  return target ? target.replace(/^\/?(xl\/)?/, 'xl/') : null;
-}
+const withMarks = (fields, marks) => ({ ...fields, results_note: `From the marks in ${marks.name}.`, results_rule: cutoffRule(marks.cutoffs || DEFAULT_CUTOFFS),
+  clos: fields.clos.map((c, i) => ({ ...c, ...marks.results[i] })) });
 
-function sharedStrings(zip) {
-  const file = zip.file('xl/sharedStrings.xml');
-  return file ? tagged(parseXml(file.asText()), 'si').map((si) => tagged(si, 't').map((t) => t.textContent).join('')) : [];
-}
-
-// The first student row: the one under the Bloom's Level label.
-function reportStart(sheet, strings) {
-  const label = tagged(sheet, 'c').find((c) => {
-    const value = tagged(c, 'v')[0];
-    const text = c.getAttribute('t') === 's' && value ? strings[Number(value.textContent)] : tagged(c, 't').map((t) => t.textContent).join('');
-    return text === 'Bloom\'s Level';
-  });
-  return label ? Number(label.getAttribute('r').replace(/\D/g, '')) + 1 : null;
-}
-
-function setSheetCell(sheet, ref, value) {
-  const cell = tagged(sheet, 'c').find((c) => c.getAttribute('r') === ref);
-  if (!cell) throw new Error(`The template has no cell ${ref}`);
-  cell.replaceChildren();
-  cell.removeAttribute('t');
-  if (typeof value === 'number') {
-    cell.append(Object.assign(sheet.createElementNS(SHEET_NS, 'v'), { textContent: String(value) }));
-    return;
-  }
-  cell.setAttribute('t', 'inlineStr');
-  const text = sheet.createElementNS(SHEET_NS, 't');
-  text.textContent = value;
-  const inline = sheet.createElementNS(SHEET_NS, 'is');
-  inline.append(text);
-  cell.append(inline);
-}
-
-async function fillReport(blob, fields) {
-  const PizZip = await loadPizZip();
-  const zip = new PizZip(await blob.arrayBuffer());
-  const { cells, students } = fields.report;
-  // Text sits in the shared list in files Excel saved, and in each sheet in others.
-  for (const file of Object.values(zip.files).filter((f) => /^xl\/(sharedStrings|worksheets\/[^/]+)\.xml$/.test(f.name))) {
-    zip.file(file.name, file.asText().replace(/\{(\w+)\}/g, (all, key) => (key in cells ? escapeXml(cells[key]) : all)));
-  }
-  const strings = sharedStrings(zip);
-  const path = marksSheetPath(zip);
-  const sheet = parseXml(zip.file(path).asText());
-  const start = reportStart(sheet, strings);
-  students.forEach((s, i) => {
-    [i + 1, s.section, s.name, s.roll, ...s.marks].forEach((value, c) => setSheetCell(sheet, `${'ABCDEFGHIJ'[c]}${start + i}`, value));
-  });
-  zip.file(path, toXml(sheet));
-  // Excel works out every formula again when the file opens.
-  const book = parseXml(zip.file('xl/workbook.xml').asText());
-  const calc = tagged(book, 'calcPr')[0] || book.documentElement.appendChild(book.createElementNS(SHEET_NS, 'calcPr'));
-  calc.setAttribute('fullCalcOnLoad', '1');
-  zip.file('xl/workbook.xml', toXml(book));
-  return zip.generate({ type: 'blob', mimeType: XLSX_TYPE, compression: 'DEFLATE' });
-}
-
-// One document for a subject: built from an uploaded template if there is one, otherwise the reviewed file.
+// One document for a subject: built live if it has an uploaded template or marks, otherwise the reviewed file.
 async function planBlob({ code, kind, name }) {
-  const custom = planCustom[kind];
-  if (custom) {
+  if (kind === 'marks' && planMarks[code]) return planMarks[code].blob;
+  const marks = kind === 'report' && planMarks[code];
+  if (planCustom[kind] || marks) {
     const fields = await subjectFields(code);
-    return kind === 'report' ? fillReport(custom.blob, fields) : fillDocx(custom.blob, fields);
+    return fillDocx(await activeTemplate(kind), marks ? withMarks(fields, marks) : fields);
   }
   const res = await fetch(PLAN_DIR + name);
   if (!res.ok) throw new Error(name);
@@ -444,7 +490,7 @@ async function downloadPlanFile(file) {
     saveBlob(await planBlob(file), file.name);
     $('plan-status').textContent = `${file.name} is ready.`;
   } catch (e) {
-    $('plan-status').textContent = `${file.name} couldn’t be built from your template. Check its marked fields, or restore the default.`;
+    $('plan-status').textContent = `${file.name} couldn’t be built. Check your template’s marked fields, or restore the default.`;
   }
 }
 
@@ -452,22 +498,46 @@ const planSubjects = () => data.curriculum.filter((c) => planIndex[c['Subject Co
 
 function fillPlanSubjects() {
   const sem = Number($('plan-sem').value);
-  const rows = planSubjects().filter((c) => !sem || c.Semester === sem);
-  $('plan-subject').replaceChildren(el('option', { value: '', text: `All subjects (${rows.length})` }),
-    ...rows.map((c) => el('option', { value: c['Subject Code'], text: `${c['Subject Code']} ${c.Subject}` })));
+  const rows = data.curriculum.filter((c) => !sem || c.Semester === sem);
+  const ready = rows.filter((c) => planIndex[c['Subject Code']]);
+  $('plan-subject').replaceChildren(el('option', { value: '', text: `All available subjects (${ready.length})` }),
+    ...rows.map((c) => el('option', { value: c['Subject Code'], text: `${c['Subject Code']} ${c.Subject}`, disabled: !planIndex[c['Subject Code']] })));
+}
+
+// The subjects the semester and subject dropdowns currently point at.
+function pickedSubjects() {
+  const sem = Number($('plan-sem').value);
+  const code = $('plan-subject').value;
+  return planSubjects().filter((c) => (!sem || c.Semester === sem) && (!code || c['Subject Code'] === code));
+}
+
+function openMarksTile(code) {
+  planMarksCode = code;
+  renderTemplates();
+  location.hash = 'planner/templates';
+  setTimeout(() => $('tpl-marks-subject').scrollIntoView({ behavior: 'smooth', block: 'center' }), 100);
+}
+
+function updateMarksPrompt() {
+  const missing = pickedSubjects().map((c) => c['Subject Code']).filter((code) => !planMarks[code]);
+  const prompt = $('plan-marks-prompt');
+  prompt.hidden = !$('plan-marks').checked || !missing.length;
+  if (prompt.hidden) return;
+  const who = missing.length === 1 ? missing[0] : plural(missing.length, 'subject');
+  prompt.replaceChildren(el('p', { text: `Please upload the marks sheet for ${who} on the Templates tab. Until then, this download is a sample with dummy marks.` }),
+    el('button', { class: 'btn btn-outline btn-sm', type: 'button', text: 'Upload marks sheet', onclick: () => openMarksTile(missing[0]) }));
 }
 
 function clearPlanResults() {
   $('plan-results').hidden = true;
-  const picked = PLAN_DOCS.some(([kind]) => $(`plan-${kind}`).checked);
+  updateMarksPrompt();
+  const picked = PLAN_OUTPUTS.some(([kind]) => $(`plan-${kind}`).checked);
   $('plan-generate').disabled = !picked;
 }
 
 function generatePlan() {
-  const sem = Number($('plan-sem').value);
-  const code = $('plan-subject').value;
-  const kinds = PLAN_DOCS.filter(([kind]) => $(`plan-${kind}`).checked);
-  const rows = planSubjects().filter((c) => (!sem || c.Semester === sem) && (!code || c['Subject Code'] === code));
+  const kinds = PLAN_OUTPUTS.filter(([kind]) => $(`plan-${kind}`).checked);
+  const rows = pickedSubjects();
   planFiles = [];
   const head = el('tr', {}, ['Subject', 'Professor', 'Sem', 'Credits', 'Assessment', ...kinds.map(([, label]) => label)]
     .map((text) => el('th', { text })));
@@ -482,9 +552,11 @@ function generatePlan() {
       if (!name) return el('td', { class: 'plan-none', text: 'Not available yet' });
       const file = { code: c['Subject Code'], kind, name };
       planFiles.push(file);
-      if (!planCustom[kind]) return el('td', {}, el('a', { href: PLAN_DIR + name, download: true }, icon('download'), ' Download'));
+      const marks = (kind === 'report' || kind === 'marks') && planMarks[c['Subject Code']];
+      if (!planCustom[kind] && !marks) return el('td', {}, el('a', { href: PLAN_DIR + name, download: true }, icon('download'), ' Download'),
+        kind === 'marks' ? el('small', { class: 'plan-sample', text: 'Sample, dummy marks' }) : null);
       return el('td', {}, el('button', { class: 'btn-link', type: 'button', onclick: () => downloadPlanFile(file) }, icon('download'), ' Download'),
-        el('small', { class: 'plan-custom', text: 'Your template' }));
+        el('small', { class: 'plan-custom', text: [planCustom[kind] && 'Your template', marks && 'Your marks'].filter(Boolean).join(', ') }));
     })));
   $('plan-table').replaceChildren(el('thead', {}, head), el('tbody', {}, body));
   $('plan-status').textContent = `${plural(planFiles.length, 'document')} for ${plural(rows.length, 'subject')}.`;
@@ -525,15 +597,25 @@ async function activeTemplate(kind) {
   return res.blob();
 }
 
+const blankMarks = (code) => `${PLAN_DIR}marks/${code}_Marks_Sheet_Blank.xlsx`;
+
+async function marksPreviewBlob() {
+  const saved = planMarks[planMarksCode];
+  if (saved) return saved.blob;
+  const res = await fetch(blankMarks(planMarksCode));
+  if (!res.ok) throw new Error(planMarksCode);
+  return res.blob();
+}
+
 async function previewTemplate(kind, label) {
   const body = $('tpl-preview-body');
   $('tpl-preview').hidden = false;
   $('tpl-preview-title').textContent = `${label} preview`;
-  $('tpl-preview-note').textContent = kind === 'report' ? 'First rows of each sheet.' : 'Word’s layout is only approximate here. Download the file for the exact version.';
+  $('tpl-preview-note').textContent = kind === 'marks' ? 'First rows of each sheet.' : 'Word’s layout is only approximate here. Download the file for the exact version.';
   body.replaceChildren(el('p', { class: 'fine', text: 'Loading…' }));
   try {
-    const blob = await activeTemplate(kind);
-    if (kind === 'report') {
+    const blob = kind === 'marks' ? await marksPreviewBlob() : await activeTemplate(kind);
+    if (kind === 'marks') {
       const ExcelJS = await loadExcel();
       const book = new ExcelJS.Workbook();
       await book.xlsx.load(await blob.arrayBuffer());
@@ -590,27 +672,82 @@ async function restoreTemplate(kind) {
   renderTemplates();
 }
 
+async function uploadMarks(code, file, message) {
+  message.textContent = 'Reading the marks…';
+  message.className = 'tpl-msg';
+  try {
+    const { error, ...counted } = await readMarks(code, file);
+    if (error) { message.textContent = error; message.className = 'tpl-msg is-error'; return; }
+    const saved = { name: file.name, blob: new Blob([file], { type: file.type }), savedAt: new Date().toISOString(), ...counted };
+    await templateStore('readwrite', (s) => s.put(saved, `marks:${code}`));
+    planMarks[code] = saved;
+    clearPlanResults();
+    renderTemplates();
+  } catch (e) {
+    message.textContent = 'These marks couldn’t be read or saved in this browser.';
+    message.className = 'tpl-msg is-error';
+  }
+}
+
+async function removeMarks(code) {
+  try { await templateStore('readwrite', (s) => s.delete(`marks:${code}`)); } catch (e) { /* nothing was stored */ }
+  delete planMarks[code];
+  clearPlanResults();
+  renderTemplates();
+}
+
+function marksCard() {
+  const subjects = planSubjects();
+  if (!subjects.length) return null;
+  planMarksCode ||= subjects[0]['Subject Code'];
+  const code = planMarksCode;
+  const saved = planMarks[code];
+  const message = el('p', { class: 'tpl-msg', role: 'status' });
+  const input = el('input', { type: 'file', accept: '.xlsx', hidden: true, 'aria-label': `Upload marks for ${code}`, id: 'tpl-file-marks',
+    onchange: (e) => { if (e.target.files[0]) uploadMarks(code, e.target.files[0], message); e.target.value = ''; } });
+  const picker = el('select', { id: 'tpl-marks-subject', onchange: (e) => { planMarksCode = e.target.value; renderTemplates(); } },
+    subjects.map((c) => el('option', { value: c['Subject Code'], text: `${c['Subject Code']} ${c.Subject}` })));
+  picker.value = code;
+  return el('article', { class: 'tpl-card' },
+    el('h3', { text: 'Marks Sheet' }),
+    el('p', { class: 'tpl-meta', text: 'Excel upload that feeds the AoL Report' }),
+    el('label', { class: 'select tpl-select' }, el('span', { text: 'Subject' }), picker),
+    el('p', { class: 'tpl-version' }, saved ? el('strong', { text: 'Your marks: ' }) : el('strong', { text: 'No marks uploaded' }),
+      saved ? `${saved.name} (${plural(saved.students, 'student')})` : '. The report shows dummy results.'),
+    (saved ? saved.warnings : []).map((text) => el('p', { class: 'tpl-msg is-warning', text })),
+    message,
+    el('div', { class: 'tpl-actions' },
+      el('button', { class: 'btn btn-outline btn-sm', type: 'button', text: 'Preview', onclick: () => previewTemplate('marks', `${code} Marks Sheet`) }),
+      el('a', { class: 'btn btn-outline btn-sm', href: blankMarks(code), download: true, text: 'Download blank' }),
+      el('a', { class: 'btn btn-outline btn-sm', href: PLAN_DIR + planIndex[code].marks, download: true, text: 'Download sample' }),
+      saved ? el('button', { class: 'btn btn-outline btn-sm', type: 'button', text: 'Download yours', onclick: () => saveBlob(saved.blob, saved.name) }) : null,
+      el('button', { class: 'btn btn-primary btn-sm', type: 'button', text: 'Upload marks', onclick: () => input.click() }),
+      saved ? el('button', { class: 'btn-link', type: 'button', text: 'Remove marks', onclick: () => removeMarks(code) }) : null),
+    input);
+}
+
 function renderTemplates() {
   $('tpl-grid').replaceChildren(...PLAN_DOCS.map(([kind, label]) => {
     const custom = planCustom[kind];
-    const excel = kind === 'report';
+    const sample = Object.values(planIndex)[0]?.[kind]; // a finished document, from the first sample subject
     const message = el('p', { class: 'tpl-msg', role: 'status' });
-    const input = el('input', { type: 'file', accept: excel ? '.xlsx' : '.docx', hidden: true, 'aria-label': `Upload ${label} template`, id: `tpl-file-${kind}`,
+    const input = el('input', { type: 'file', accept: '.docx', hidden: true, 'aria-label': `Upload ${label} template`, id: `tpl-file-${kind}`,
       onchange: (e) => { if (e.target.files[0]) uploadTemplate(kind, e.target.files[0], message); e.target.value = ''; } });
     return el('article', { class: 'tpl-card' },
       el('h3', { text: label }),
-      el('p', { class: 'tpl-meta', text: excel ? 'Excel template' : 'Word template' }),
+      el('p', { class: 'tpl-meta', text: 'Word template' }),
       el('p', { class: 'tpl-version' }, custom ? el('strong', { text: 'Your template: ' }) : el('strong', { text: 'E-Logic default' }), custom ? custom.name : ''),
       (custom ? custom.warnings : []).map((text) => el('p', { class: 'tpl-msg is-warning', text })),
       message,
       el('div', { class: 'tpl-actions' },
         el('button', { class: 'btn btn-outline btn-sm', type: 'button', text: 'Preview', onclick: () => previewTemplate(kind, label) }),
         el('a', { class: 'btn btn-outline btn-sm', href: `${PLAN_DIR}templates/${PLAN_BLANKS[kind]}`, download: true, text: 'Download blank' }),
+        sample ? el('a', { class: 'btn btn-outline btn-sm', href: PLAN_DIR + sample, download: true, text: 'Download sample' }) : null,
         custom ? el('button', { class: 'btn btn-outline btn-sm', type: 'button', text: 'Download yours', onclick: () => saveBlob(custom.blob, custom.name) }) : null,
         el('button', { class: 'btn btn-primary btn-sm', type: 'button', text: 'Upload new', onclick: () => input.click() }),
         custom ? el('button', { class: 'btn-link', type: 'button', text: 'Restore default', onclick: () => restoreTemplate(kind) }) : null),
       input);
-  }));
+  }), ...[marksCard()].filter(Boolean));
 }
 
 async function renderPlanner() {
@@ -618,24 +755,27 @@ async function renderPlanner() {
   $('plan-tab-templates').addEventListener('click', () => { location.hash = 'planner/templates'; });
   $('tpl-preview-close').addEventListener('click', () => { $('tpl-preview').hidden = true; });
   await loadCustomTemplates();
-  renderTemplates();
   try {
     planIndex = await (await fetch(`${PLAN_DIR}index.json`)).json();
   } catch (e) {
+    renderTemplates();
     $('plan-note').textContent = 'The course documents couldn’t be loaded.';
     $('plan-generate').disabled = true;
     return;
   }
+  await loadSavedMarks();
+  renderTemplates();
   const rows = planSubjects();
   $('plan-program').append(el('option', { text: 'BBA' }));
   $('plan-sem').append(el('option', { value: '', text: 'All semesters' }),
-    ...[...new Set(rows.map((c) => c.Semester))].map((s) => el('option', { value: s, text: `Semester ${s}` })));
+    ...[...new Set(data.curriculum.map((c) => c.Semester))].map((s) => el('option', { value: s, text: `Semester ${s}`, disabled: !rows.some((c) => c.Semester === s) })));
   fillPlanSubjects();
-  $('plan-note').textContent = `${plural(rows.length, 'sample subject')} available so far, with more to come. `
-    + 'All documents are drafts for faculty review, and marks in the AoL Report are dummy data.';
+  $('plan-note').textContent = `${plural(rows.length, 'sample subject')} available so far, with more to come, and the rest are greyed out. `
+    + 'All documents are drafts for faculty review. AoL Reports and marks sheets show dummy marks until marks are uploaded on the Templates tab.';
   $('plan-sem').addEventListener('change', () => { fillPlanSubjects(); clearPlanResults(); });
   $('plan-subject').addEventListener('change', clearPlanResults);
-  for (const [kind] of PLAN_DOCS) $(`plan-${kind}`).addEventListener('change', clearPlanResults);
+  for (const [kind] of PLAN_OUTPUTS) $(`plan-${kind}`).addEventListener('change', clearPlanResults);
+  clearPlanResults();
   $('plan-generate').addEventListener('click', generatePlan);
   $('plan-zip').addEventListener('click', downloadPlanZip);
 }

@@ -255,7 +255,9 @@
       <label><input type="checkbox" id="plan-outline" checked> Course Outline</label>
       <label><input type="checkbox" id="plan-aol" checked> AoL Plan</label>
       <label><input type="checkbox" id="plan-report" checked> AoL Report</label>
+      <label><input type="checkbox" id="plan-marks"> Marks Sheet (Excel)</label>
     </fieldset>
+    <div class="plan-prompt" id="plan-marks-prompt" role="status" hidden></div>
     <button class="btn btn-primary" type="button" id="plan-generate">Generate documents</button>
     <p class="fine" id="plan-note"></p>
     <div id="plan-results" hidden>
@@ -267,8 +269,9 @@
     </div>
     </div>
     <div id="plan-panel-templates" hidden>
-      <p class="plan-intro">Download a blank template, edit it in Word or Excel, then upload it. Words in {curly brackets} are marked fields, filled in for each subject. Keep them where you want that information to appear.</p>
-      <p class="fine plan-intro">Uploaded templates are saved in this browser only, and other people won't see them. While one is in use, Generate documents builds that document from your template.</p>
+      <p class="plan-intro">Download a blank template, edit it in Word, then upload it. Words in {curly brackets} are marked fields, filled in for each subject. Keep them where you want that detail to appear.</p>
+      <p class="plan-intro">To put real results in an AoL Report, pick the subject on the Marks Sheet tile, download the blank, enter the marks in Excel and upload it. The report's Assessment Results are worked out from those marks.</p>
+      <p class="fine plan-intro">Uploaded templates and marks are saved in this browser only, and other people won't see them. While one is in use, Generate documents builds from it, and otherwise uses the reviewed files.</p>
       <div class="tpl-grid" id="tpl-grid"></div>
       <div id="tpl-preview" hidden>
         <div class="plan-actions"><strong id="tpl-preview-title"></strong><button class="btn-link" type="button" id="tpl-preview-close">Close preview</button></div>

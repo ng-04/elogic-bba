@@ -1,4 +1,4 @@
-"""Fills the Course Outline and AoL Plan Word templates for one or more subjects.
+"""Fills the Course Outline, AoL Plan and AoL Report Word templates for one or more subjects.
 
 Facts (code, credits, faculty, batch, students) come from site-data.json and the assessment
 split from the handbook rules; each subject's written content comes from content/<code>.json.
@@ -26,6 +26,8 @@ from docx.table import Table
 from docx.text.paragraph import Paragraph
 from PIL import Image, ImageDraw, ImageFont
 
+from build_marks import RESULTS_NOTE, RESULTS_RULE, class_results
+
 ROOT = Path(__file__).resolve().parents[2]
 HERE = Path(__file__).resolve().parent
 TEMPLATES = ROOT / "data" / "incoming"
@@ -33,6 +35,7 @@ OUT = ROOT / "data" / "outgoing"
 BLANKS = ROOT / "docs" / "course-docs" / "templates"
 OUTLINE_TEMPLATE = TEMPLATES / "Course Outline Format_Semesters III, V and VII.docx"
 AOL_TEMPLATE = TEMPLATES / "AoL_Plan_Format.docx"
+REPORT_TEMPLATE = TEMPLATES / "AoL_Report_Format.docx"
 
 SCHOOL = "E-Logic School of Business, Bengaluru"
 PROGRAMME = "Bachelor of Business Administration (BBA)"
@@ -373,14 +376,12 @@ def build_outline(content, facts):
     return path
 
 
-def build_aol(content, facts):
-    doc = Document(AOL_TEMPLATE)
-    body = list(doc.element.body)
+def fill_aol_common(doc, body, content, facts):
+    """The parts the AoL Plan and AoL Report share: heading, course details, CLOs and rubrics."""
     P = lambda i: Paragraph(body[i], doc.element.body)
     T = lambda i: Table(body[i], doc)
     s, faculty = facts["subject"], facts["faculty"]
 
-    blank = s["Assessment"] == "Blank"
     set_text(P(0), SCHOOL)
     draft_line(body[1], doc)
 
@@ -400,10 +401,6 @@ def build_aol(content, facts):
         set_cell(r.cells[0], c.get("first", str(n)))
         set_cell(r.cells[1], c["text"], left=True)
         set_cell(r.cells[2], c.get("plg_label") or f"PLG {c['plg']}: {PLGS[c['plg']]}", left=True)
-    for n, (r, c) in enumerate(zip(T(9).rows[1:], clos), 1):
-        set_cell(r.cells[0], c.get("first", str(n)))
-        set_cell(r.cells[1], c["text"], left=True)
-        set_cell(r.cells[2], c["mode"], left=True)
     for n, (r, c) in enumerate(zip(T(14).rows[1:], clos), 1):
         rubric = c["rubric"]
         set_cell(r.cells[0], c.get("first", str(n)), size=10)
@@ -418,10 +415,72 @@ def build_aol(content, facts):
         height = row._tr.get_or_add_trPr().find(qn("w:trHeight"))
         if height is not None:
             height.getparent().remove(height)
+
+
+def build_aol(content, facts):
+    doc = Document(AOL_TEMPLATE)
+    body = list(doc.element.body)
+    s = facts["subject"]
+    blank = s["Assessment"] == "Blank"
+    for n, (r, c) in enumerate(zip(fit_table(doc, body[9], content), content["clos"]), 1):
+        set_cell(r.cells[0], c.get("first", str(n)))
+        set_cell(r.cells[1], c["text"], left=True)
+        set_cell(r.cells[2], c["mode"], left=True)
+    fill_aol_common(doc, body, content, facts)
     remove(*body[11:13], *body[16:20])
 
     set_properties(doc, f"{s['Subject Code']} {s['Subject']} AoL Plan")
     path = BLANKS / "E-Logic_AoL_Plan_Template.docx" if blank else OUT / f"{s['Subject Code']}_AoL_Plan.docx"
+    doc.save(path)
+    clean_package(path)
+    return path
+
+
+def fit_table(doc, element, content):
+    table = Table(element, doc)
+    fit_rows(table, len(content["clos"]))
+    return table.rows[1:]
+
+
+def build_report(content, facts, results):
+    doc = Document(REPORT_TEMPLATE)
+    body = list(doc.element.body)
+    P = lambda i: Paragraph(body[i], doc.element.body)
+    T = lambda i: Table(body[i], doc)
+    s, clos = facts["subject"], content["clos"]
+    blank = s["Assessment"] == "Blank"
+
+    for n, (r, c) in enumerate(zip(fit_table(doc, body[9], content), clos), 1):
+        set_cell(r.cells[0], c.get("first", str(n)))
+        set_cell(r.cells[1], c.get("n", str(n)))
+        set_cell(r.cells[2], c["text"], left=True)
+        set_cell(r.cells[3], c["mode"], left=True)
+    fill_aol_common(doc, body, content, facts)
+
+    fit_rows(T(22), len(clos), first=2)
+    for n, (r, c, result) in enumerate(zip(T(22).rows[2:], clos, results), 1):
+        set_cell(r.cells[0], c.get("first", str(n)))
+        set_cell(r.cells[1], f"PLG {c['plg']}")
+        for cell, key in zip(r.cells[2:], ("exceed_n", "exceed_pct", "meet_n", "meet_pct", "below_n", "below_pct")):
+            set_cell(cell, result[key])
+            cell.paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.CENTER
+    tidy_table(T(22), P(20))
+    T(22).rows[1]._tr.get_or_add_trPr().append(OxmlElement("w:tblHeader"))
+    keep_together(T(22))
+    note = "{results_note} {results_rule}" if blank else f"{RESULTS_NOTE} {RESULTS_RULE}"
+    font(P(23).add_run(note), size=10, italic=True)
+
+    # Analysis and improvement are left for faculty, once they have seen the results.
+    fit_rows(T(26), len(clos))
+    for n, (r, c) in enumerate(zip(T(26).rows[1:], clos), 1):
+        set_cell(r.cells[0], c.get("first", str(n)))
+        set_cell(r.cells[1], f"PLG {c['plg']}")
+        set_cell(r.cells[3], c.get("end_row", ""))
+    tidy_table(T(26), P(24))
+    remove(*body[11:13], *body[16:20], body[21], body[25])
+
+    set_properties(doc, f"{s['Subject Code']} {s['Subject']} AoL Report")
+    path = BLANKS / "E-Logic_AoL_Report_Template.docx" if blank else OUT / f"{s['Subject Code']}_AoL_Report.docx"
     doc.save(path)
     clean_package(path)
     return path
@@ -452,7 +511,7 @@ def blank_inputs():
              "endorser": {"name": "{endorser}", "role": "{endorser_role}"}}
     content = {
         "introduction": "{introduction}", "objectives": [], "textbooks": [], "readings": [],
-        "clos": [{"first": "{#clos}{n}", "text": "{text}", "plg": "{plg}", "plg_label": "{plg_label}{/clos}", "mode": "{mode}{/clos}",
+        "clos": [{"first": "{#clos}{n}", "n": "{n}", "end_row": "{/clos}", "text": "{text}", "plg": "{plg}", "plg_label": "{plg_label}{/clos}", "mode": "{mode}{/clos}",
                   "rubric": {"exceed": "{exceed}", "meet": "{meet}", "below": "{below}{/clos}"}}],
         "assessment": {"end_term": {"mode": "{end_term_mode}", "clos": "{end_term_clos}"},
                        "components": [{"name": "{#components}{name}", "unit": "{unit}", "weight": "{weight}",
@@ -460,6 +519,10 @@ def blank_inputs():
         "sessions": [["{#sessions}{no}", "{topic}", "{pedagogy}", "{reading}{/sessions}"]],
     }
     return content, facts
+
+
+BLANK_RESULTS = [{"exceed_n": "{exceed_n}", "exceed_pct": "{exceed_pct}", "meet_n": "{meet_n}", "meet_pct": "{meet_pct}",
+                  "below_n": "{below_n}", "below_pct": "{below_pct}{/clos}"}]
 
 
 def subject_fields(code):
@@ -481,7 +544,9 @@ def subject_fields(code):
         "textbooks": [{"text": textbook_line(t)} for t in content["textbooks"]],
         "readings": [{"n": n, "text": t} for n, t in enumerate(content["readings"], 1)],
         "clos": [{"n": n, "text": c["text"], "plg": c["plg"], "plg_label": f"PLG {c['plg']}: {PLGS[c['plg']]}",
-                  "mode": c["mode"], **c["rubric"]} for n, c in enumerate(content["clos"], 1)],
+                  "mode": c["mode"], **c["rubric"], **result}
+                 for n, (c, result) in enumerate(zip(content["clos"], class_results(code)), 1)],
+        "results_note": RESULTS_NOTE, "results_rule": RESULTS_RULE,
         "components": [{"name": c["name"], "unit": c["unit"], "weight": str(c["weight"]), "when": c["when"],
                         "clos": clo_list(c["clos"])} for c in a["components"]],
         "sessions": [dict(zip(("no", "topic", "pedagogy", "reading"), row)) for row in content["sessions"]],
@@ -630,11 +695,13 @@ if __name__ == "__main__":
     BLANKS.mkdir(parents=True, exist_ok=True)
     print(build_outline(*blank_inputs()))
     print(build_aol(*blank_inputs()))
+    print(build_report(*blank_inputs(), BLANK_RESULTS))
     for code in sys.argv[1:]:
         content = json.loads((HERE / "content" / f"{code}.json").read_text())
         facts = subject_facts(code)
         print(build_outline(content, facts))
         print(build_aol(content, facts))
+        print(build_report(content, facts, class_results(code)))
         print(build_reference(content, facts))
     for name in (HANDBOOK, WORKBOOK):
         shutil.copy2(ROOT / "docs" / name, OUT / name)

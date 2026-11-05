@@ -62,7 +62,13 @@
    "mode": "Studio and Lab Exercises: Excel and Python lab submissions",
    "exceed": "Prepares data accurately with no prompting, chooses the most suitable summaries and charts, and writes clean, reusable work in both tools.",
    "meet": "Prepares data with minor errors and produces correct summaries and charts in both tools.",
-   "below": "Leaves major data errors unresolved, or produces summaries and charts that are wrong or misleading."
+   "below": "Leaves major data errors unresolved, or produces summaries and charts that are wrong or misleading.",
+   "exceed_n": "9",
+   "exceed_pct": "22.5%",
+   "meet_n": "23",
+   "meet_pct": "57.5%",
+   "below_n": "8",
+   "below_pct": "20.0%"
   },
   {
    "n": 2,
@@ -72,7 +78,13 @@
    "mode": "Studio and Lab Exercises: regression and forecasting lab submissions",
    "exceed": "Frames the problem precisely, selects and tests a suitable model, compares alternatives, and proposes a well-justified solution.",
    "meet": "Frames the problem clearly, applies a suitable model correctly, and proposes a solution consistent with the results.",
-   "below": "Frames the problem poorly, applies an unsuitable model, or proposes a solution the results do not support."
+   "below": "Frames the problem poorly, applies an unsuitable model, or proposes a solution the results do not support.",
+   "exceed_n": "8",
+   "exceed_pct": "20.0%",
+   "meet_n": "21",
+   "meet_pct": "52.5%",
+   "below_n": "11",
+   "below_pct": "27.5%"
   },
   {
    "n": 3,
@@ -82,7 +94,13 @@
    "mode": "Final Showcase: evaluation of results and limitations (peer review as a supporting measure)",
    "exceed": "Tests the results for weaknesses, explains the limits of the data, and traces the impact across several business functions.",
    "meet": "Notes the main limits of the analysis and links the results to the relevant business functions.",
-   "below": "Accepts the results without question, or does not link them to the wider business."
+   "below": "Accepts the results without question, or does not link them to the wider business.",
+   "exceed_n": "0",
+   "exceed_pct": "0.0%",
+   "meet_n": "24",
+   "meet_pct": "60.0%",
+   "below_n": "16",
+   "below_pct": "40.0%"
   },
   {
    "n": 4,
@@ -92,9 +110,17 @@
    "mode": "Final Showcase: team presentation to a jury",
    "exceed": "Leads with the recommendation, tells a clear story with well-chosen visuals, and answers jury questions with confidence.",
    "meet": "States the recommendation clearly, uses readable visuals, and answers most jury questions.",
-   "below": "The recommendation is unclear, visuals are hard to follow, or the team cannot answer basic questions."
+   "below": "The recommendation is unclear, visuals are hard to follow, or the team cannot answer basic questions.",
+   "exceed_n": "13",
+   "exceed_pct": "32.5%",
+   "meet_n": "25",
+   "meet_pct": "62.5%",
+   "below_n": "2",
+   "below_pct": "5.0%"
   }
  ],
+ "results_note": "Dummy data: these results are illustrative and do not come from real student marks.",
+ "results_rule": "Exceed Expectation is 75% or more of the marks for that CLO, Meet Expectation is 50% up to 75%, and Does not meet Expectation is below 50%.",
  "components": [
   {
    "name": "Studio and Lab Exercises",

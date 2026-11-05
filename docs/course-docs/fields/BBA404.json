@@ -63,7 +63,13 @@
    "mode": "Proposal: team venture proposal",
    "exceed": "Describes a specific, well-researched opportunity and applies entrepreneurship concepts accurately and with insight.",
    "meet": "Describes a clear opportunity and applies the main concepts correctly.",
-   "below": "The opportunity is vague or unsupported, or concepts are misapplied."
+   "below": "The opportunity is vague or unsupported, or concepts are misapplied.",
+   "exceed_n": "17",
+   "exceed_pct": "42.5%",
+   "meet_n": "17",
+   "meet_pct": "42.5%",
+   "below_n": "6",
+   "below_pct": "15.0%"
   },
   {
    "n": 2,
@@ -73,7 +79,13 @@
    "mode": "Milestone Reviews: evidence from customer interviews and MVP tests (Mentor Assessment as a supporting measure)",
    "exceed": "Gathers strong evidence from real customers, changes direction when the data demands it, and shows a validated solution.",
    "meet": "Gathers enough customer evidence to confirm the problem and tests a solution at least once.",
-   "below": "Relies on assumptions rather than customer evidence, or ignores what the evidence shows."
+   "below": "Relies on assumptions rather than customer evidence, or ignores what the evidence shows.",
+   "exceed_n": "6",
+   "exceed_pct": "15.0%",
+   "meet_n": "29",
+   "meet_pct": "72.5%",
+   "below_n": "5",
+   "below_pct": "12.5%"
   },
   {
    "n": 3,
@@ -83,7 +95,13 @@
    "mode": "Final Report and Viva: written venture plan",
    "exceed": "All parts of the plan fit together, financial projections follow from stated assumptions, and external risks are critically assessed.",
    "meet": "The plan covers all functional areas with reasonable projections and notes the main external risks.",
-   "below": "Parts of the plan contradict each other, projections are unsupported, or external factors are ignored."
+   "below": "Parts of the plan contradict each other, projections are unsupported, or external factors are ignored.",
+   "exceed_n": "6",
+   "exceed_pct": "15.0%",
+   "meet_n": "21",
+   "meet_pct": "52.5%",
+   "below_n": "13",
+   "below_pct": "32.5%"
   },
   {
    "n": 4,
@@ -93,9 +111,17 @@
    "mode": "Final Report and Viva: team pitch and viva",
    "exceed": "Delivers a compelling, well-structured pitch and handles tough questions with clear, evidence-based answers.",
    "meet": "Delivers a clear pitch and answers most questions adequately.",
-   "below": "The pitch is unclear or unconvincing, or the team cannot defend its plan."
+   "below": "The pitch is unclear or unconvincing, or the team cannot defend its plan.",
+   "exceed_n": "7",
+   "exceed_pct": "17.5%",
+   "meet_n": "26",
+   "meet_pct": "65.0%",
+   "below_n": "7",
+   "below_pct": "17.5%"
   }
  ],
+ "results_note": "Dummy data: these results are illustrative and do not come from real student marks.",
+ "results_rule": "Exceed Expectation is 75% or more of the marks for that CLO, Meet Expectation is 50% up to 75%, and Does not meet Expectation is below 50%.",
  "components": [
   {
    "name": "Proposal",
