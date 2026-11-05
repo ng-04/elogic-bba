@@ -247,8 +247,6 @@ const EXCELJS = 'https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js'
 const MAMMOTH = 'https://cdn.jsdelivr.net/npm/mammoth@1.13.0/mammoth.browser.min.js';
 const DOCX_TYPE = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
 const TEMPLATE_LIMIT = 10 * 1024 * 1024;
-// Old branding that must not reach E-Logic documents; encoded so this public file doesn't name it.
-const OLD_BRANDING = new RegExp(atob('dFwuPyA/YVwuPyA/cGFpfHRhcG1pfG1hbmlwYWw='), 'i');
 let planIndex = {};
 let planFiles = [];
 let planCustom = {}; // kind -> { name, blob, savedAt, warnings }: uploaded templates in this browser
@@ -314,8 +312,6 @@ async function checkTemplate(kind, file) {
   } catch (e) {
     return { error: 'That file couldn’t be opened. It may be damaged.' };
   }
-  const texts = Object.values(parts.files).filter((f) => !f.dir && /\.(xml|rels)$/.test(f.name)).map((f) => xmlText(f.asText()));
-  if (texts.some((t) => OLD_BRANDING.test(t))) warnings.push('This file mentions another institute. Please remove it before using this template.');
   const { default: Docxtemplater } = await import(DOCXTEMPLATER);
   try {
     new Docxtemplater(parts, { paragraphLoop: true, linebreaks: true });
