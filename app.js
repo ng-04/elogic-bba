@@ -291,7 +291,7 @@ function constraintsCard() {
       el('li', {}, check('areaRule', 'Professors teach only in their own area', 'alloc-area')),
       el('li', { class: 'alloc-sub' }, check('exceptions', '… or in the areas listed as “also teaches”', 'alloc-exceptions')),
       el('li', {}, check('locks', 'Keep locked sections with their professor', 'alloc-locks')),
-      el('li', {}, check('bars', 'Keep barred professors off a section', 'alloc-bars')),
+      el('li', {}, check('bars', 'Keep excluded professors off a section', 'alloc-bars')),
       el('li', {}, check('availability', 'Give no sections to professors marked unavailable', 'alloc-avail')),
       el('li', {}, check('hardCap', 'Hard cap: no one more than', 'alloc-cap'), ' ', numInput(c.capHours, (v) => set('capHours', v === '' ? 0 : v), { min: 0, step: 15, id: 'alloc-cap-hours', 'aria-label': 'Hours above the maximum' }), ' hours above their maximum')));
 }
@@ -359,17 +359,17 @@ function sectionsCard() {
       el('td', { text: s.current || '-' }),
       el('td', {}, el('select', { 'aria-label': `Lock ${s.label}`, class: 'alloc-lock', onchange: (e) => { s.locked = e.target.value; allocChanged(); } },
         el('option', { value: '', text: '-' }), faculty.map((f) => el('option', { value: f.id, text: `${f.id} ${f.area === s.area ? '' : '(other area)'}`.trim(), selected: s.locked === f.id })))),
-      el('td', {}, el('input', { type: 'text', class: 'alloc-text', value: (s.barred || []).join(', '), placeholder: 'e.g. F003', 'aria-label': `Bar professors from ${s.label}`,
+      el('td', {}, el('input', { type: 'text', class: 'alloc-text', value: (s.barred || []).join(', '), placeholder: 'e.g. F003', 'aria-label': `Exclude professors from ${s.label}`,
         onchange: (e) => { s.barred = e.target.value.split(',').map((t) => t.trim().toUpperCase()).filter((t) => faculty.some((f) => f.id === t)); e.target.value = s.barred.join(', '); allocChanged(); } })))));
   };
   paint();
   const filter = (label, key, values) => el('label', { class: 'select' }, el('span', { text: label }),
     el('select', { onchange: (e) => { allocState[key] = e.target.value; paint(); } }, el('option', { value: '', text: 'All' }), values.map((v) => el('option', { value: v, text: v, selected: allocState[key] === v }))));
   return el('details', { class: 'alloc-card alloc-details' },
-    el('summary', {}, el('h3', { text: 'Sections' }), el('span', { class: 'fine', text: 'Lock a section to a professor, or bar professors from it.' })),
+    el('summary', {}, el('h3', { text: 'Sections' }), el('span', { class: 'fine', text: 'Lock a section to a professor, or exclude professors from it.' })),
     el('div', { class: 'toolbar' }, filter('Term', 'term', terms), filter('Area', 'area', areas)),
     el('div', { class: 'table-card table-scroll alloc-scroll' }, el('table', { class: 'dt dt-compact alloc-table', id: 'alloc-sections' },
-      el('thead', {}, el('tr', {}, ['Section', 'Subject', 'Term', 'Area', 'Hours', 'Current', 'Lock to', 'Bar'].map((h) => el('th', { text: h })))), body)));
+      el('thead', {}, el('tr', {}, ['Section', 'Subject', 'Term', 'Area', 'Hours', 'Current', 'Lock to', 'Exclude'].map((h) => el('th', { text: h })))), body)));
 }
 
 function runAllocation() {
@@ -472,7 +472,7 @@ function xlSheet(book, name, headers, rows, editable = [], widths = []) {
   return ws;
 }
 
-const SECTION_COLS = ['Term', 'Semester', 'Batch', 'Subject Code', 'Subject', 'Subject Area', 'Type', 'Section', 'Students', 'Credits', 'Faculty Credit Hours', 'Current Faculty ID', 'Locked Faculty ID', 'Barred Faculty IDs'];
+const SECTION_COLS = ['Term', 'Semester', 'Batch', 'Subject Code', 'Subject', 'Subject Area', 'Type', 'Section', 'Students', 'Credits', 'Faculty Credit Hours', 'Current Faculty ID', 'Locked Faculty ID', 'Excluded Faculty IDs'];
 const FACULTY_COLS = ['Faculty ID', 'Prof Name', 'Designation', 'Area', 'Administrative Role', 'Load Band', 'Min Hours', 'Max Hours', 'Min Sections per Term', 'Max Sections per Term', 'Available (Y/N)', 'Also Teaches Areas'];
 
 async function downloadAllocInput() {
@@ -483,7 +483,7 @@ async function downloadAllocInput() {
   const readme = book.addWorksheet('Read me');
   [['E-Logic faculty allocation: input workbook'], [''],
     ['Edit the yellow cells, save, and upload this file on the Scheduling page’s Faculty allocation tab.'],
-    ['Sections: one row per section. Locked Faculty ID keeps a section with that professor; Barred Faculty IDs (comma-separated) keeps them off it.'],
+    ['Sections: one row per section. Locked Faculty ID keeps a section with that professor; Excluded Faculty IDs (comma-separated) keeps them off it.'],
     ['Faculty: Load Band must match a band on the Load Bands sheet. Blank Min/Max Hours use the band; blank section limits use the Settings.'],
     ['Also Teaches Areas: comma-separated subject areas a professor may teach besides their own.'],
     ['Load Bands: teaching hours (faculty credit hours) for each band, per academic year.'],
@@ -492,7 +492,7 @@ async function downloadAllocInput() {
     .forEach((r, i) => { const row = readme.addRow(r); row.font = { ...XL_FONT, bold: i === 0, size: i === 0 ? 14 : 11 }; });
   readme.getColumn(1).width = 120;
   xlSheet(book, 'Sections', SECTION_COLS, input.sections.map((s) => [s.term, s.semester, s.batch, s.code, s.subject, s.area, s.type, s.section, s.students, s.credits, s.hours, s.current, s.locked || '', (s.barred || []).join(', ')]),
-    ['Locked Faculty ID', 'Barred Faculty IDs']);
+    ['Locked Faculty ID', 'Excluded Faculty IDs']);
   xlSheet(book, 'Faculty', FACULTY_COLS, input.faculty.map((f) => [f.id, f.name, f.designation || '', f.area, f.role || '-', f.band, f.minHours ?? '', f.maxHours ?? '', f.minSections ?? '', f.maxSections ?? '', f.available === false ? 'N' : 'Y', (f.alsoTeaches || []).join(', ')]),
     ['Load Band', 'Min Hours', 'Max Hours', 'Min Sections per Term', 'Max Sections per Term', 'Available (Y/N)', 'Also Teaches Areas'], [10, 32, 22, 20, 30]);
   xlSheet(book, 'Load Bands', ['Band', 'Min Hours', 'Max Hours'], input.bands.map((b) => [b.band, b.min, b.max]), ['Min Hours', 'Max Hours']);
@@ -503,7 +503,7 @@ async function downloadAllocInput() {
     ['Max sections per term', constraints.maxSections, 'Default for every professor'],
     ['Own area only', yn(constraints.areaRule), 'Professors teach only in their own area'],
     ['Allow also-teaches areas', yn(constraints.exceptions), 'Also allow the areas on the Faculty sheet'],
-    ['Respect locks', yn(constraints.locks), ''], ['Respect bars', yn(constraints.bars), ''], ['Respect availability', yn(constraints.availability), ''],
+    ['Respect locks', yn(constraints.locks), ''], ['Respect exclusions', yn(constraints.bars), ''], ['Respect availability', yn(constraints.availability), ''],
     ['Hard cap', yn(constraints.hardCap), 'Never above the maximum by more than the cap hours'], ['Cap hours', constraints.capHours, '']], ['Value'], [26, 12, 70]);
   saveBlob(new Blob([await book.xlsx.writeBuffer()], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }), `E-Logic_Allocation_Input_${data.academicYear}.xlsx`);
 }
@@ -519,7 +519,7 @@ async function uploadAllocInput(file) {
     const table = (name, need) => {
       const ws = book.getWorksheet(name);
       if (!ws) throw new Error(`The workbook has no ${name} sheet.`);
-      const heads = ws.getRow(1).values.slice(1).map((v) => String(v ?? '').trim());
+      const heads = ws.getRow(1).values.slice(1).map((v) => String(v ?? '').trim()).map((h) => (h === 'Barred Faculty IDs' ? 'Excluded Faculty IDs' : h));
       const missing = need.filter((h) => !heads.includes(h));
       if (missing.length) throw new Error(`The ${name} sheet is missing: ${missing.join(', ')}.`);
       const out = [];
@@ -542,7 +542,7 @@ async function uploadAllocInput(file) {
     const sections = table('Sections', SECTION_COLS).map((r, i) => {
       const s = { term: String(r.Term).trim(), semester: Number(r.Semester), batch: String(r.Batch), code: String(r['Subject Code']).trim(), subject: String(r.Subject), area: String(r['Subject Area']).trim(),
         type: String(r.Type), section: String(r.Section).trim(), students: Number(r.Students) || 0, credits: Number(r.Credits) || 0, hours: Number(r['Faculty Credit Hours']),
-        current: String(r['Current Faculty ID'] || '').trim(), locked: String(r['Locked Faculty ID'] || '').trim().toUpperCase(), barred: list(r['Barred Faculty IDs']).map((t) => t.toUpperCase()) };
+        current: String(r['Current Faculty ID'] || '').trim(), locked: String(r['Locked Faculty ID'] || '').trim().toUpperCase(), barred: list(r['Excluded Faculty IDs']).map((t) => t.toUpperCase()) };
       s.label = `${s.code} ${s.section} (${s.term})`;
       if (!Number.isFinite(s.hours) || s.hours <= 0) problems.push(`Sections row ${i + 2}: Faculty Credit Hours must be a positive number`);
       if (s.locked && !ids.has(s.locked)) problems.push(`${s.label}: locked to unknown ${s.locked}`);
@@ -557,7 +557,7 @@ async function uploadAllocInput(file) {
     const num = (k, d) => (settings[k] === undefined || settings[k] === '' || Number.isNaN(Number(settings[k])) ? d : Number(settings[k]));
     const c = allocState.constraints;
     allocState.constraints = { ...c, basis: /^t/i.test(String(settings['Hours basis'] || '')) ? 'term' : 'annual', minSections: num('Min sections per term', c.minSections), maxSections: num('Max sections per term', c.maxSections),
-      areaRule: yes('Own area only', c.areaRule), exceptions: yes('Allow also-teaches areas', c.exceptions), locks: yes('Respect locks', c.locks), bars: yes('Respect bars', c.bars),
+      areaRule: yes('Own area only', c.areaRule), exceptions: yes('Allow also-teaches areas', c.exceptions), locks: yes('Respect locks', c.locks), bars: yes('Respect exclusions', yes('Respect bars', c.bars)),
       availability: yes('Respect availability', c.availability), hardCap: yes('Hard cap', c.hardCap), capHours: num('Cap hours', c.capHours) };
     allocState.input = { source: `Uploaded ${file.name}`, sections, faculty, bands };
     allocState.result = null;
@@ -628,7 +628,7 @@ async function downloadAllocResult() {
     ['Hours basis', '', constraints.basis === 'term' ? 'Each term, half the band' : 'Academic year', ''],
     ['Sections per professor per term', '', `${constraints.minSections} to ${constraints.maxSections}`, 'Unless a professor has their own limits'],
     ['Own area only', '', constraints.areaRule ? (constraints.exceptions ? 'Yes, plus also-teaches areas' : 'Yes') : 'No', ''],
-    ['Locks, bars, availability', '', [constraints.locks && 'locks', constraints.bars && 'bars', constraints.availability && 'availability'].filter(Boolean).join(', ') || 'none', ''],
+    ['Locks, exclusions, availability', '', [constraints.locks && 'locks', constraints.bars && 'exclusions', constraints.availability && 'availability'].filter(Boolean).join(', ') || 'none', ''],
     ['Hard cap', '', constraints.hardCap ? `${constraints.capHours} hours above the maximum` : 'Off', ''],
   ], [], [36, 18, 26, 70]);
   saveBlob(new Blob([await book.xlsx.writeBuffer()], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }), `E-Logic_Allocation_${data.academicYear}_${new Date().toISOString().slice(0, 10)}.xlsx`);
