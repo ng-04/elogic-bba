@@ -241,20 +241,12 @@ def build_summary(wb, code, sample):
     q_first, q_last, total = col(Q_FIRST), col(TOTAL - 1), col(TOTAL)
     total_range = f"{m}${total}${FIRST}:${total}${last}"
 
-    ws.merge_cells("A1:K1")
-    title = f"{code} {subject['Subject']}: AoL Summary" + (" (dummy data)" if sample else "")
+    ws.merge_cells("A1:M1")
+    title = f"{code} {subject['Subject']}: AoL Summary" + (f" (sample results, {SAMPLE_YEAR})" if sample else "")
     put(ws, "A1", title, bold=True, size=14, align=LEFT).border = Border()
 
-    put(ws, "A3", "Cut-offs (edit the yellow cells)", bold=True, fill=HEAD, align=LEFT)
+    put(ws, "A3", "Class summary", bold=True, fill=HEAD, align=LEFT)
     put(ws, "B3", "Value", bold=True, fill=HEAD)
-    for r, label, value in ((4, "Exceed Expectation: at least", EXCEED_AT), (5, "Meet Expectation: at least", MEET_AT),
-                            (6, "Target: students meeting or exceeding", TARGET_SHARE)):
-        put(ws, f"A{r}", label, align=LEFT)
-        put(ws, f"B{r}", value, fill=INPUT, color=BLUE, fmt="0%")
-
-    put(ws, "D3", "Class summary", bold=True, fill=HEAD, align=LEFT)
-    ws.merge_cells("D3:E3")
-    put(ws, "F3", "Value", bold=True, fill=HEAD)
     class_rows = ((4, "Students enrolled", f"=COUNTA({m}$D${FIRST}:$D${last})", "0"),
                   (5, "With marks", f"=COUNT({total_range})", "0"),
                   (6, "Absent throughout", f'=COUNTIF({total_range},"AB")', "0"),
@@ -262,14 +254,16 @@ def build_summary(wb, code, sample):
                   (8, "Highest total", f"=MAX({total_range})", "0.0"),
                   (9, "Lowest total", f"=MIN({total_range})", "0.0"))
     for r, label, formula, fmt in class_rows:
-        ws.merge_cells(f"D{r}:E{r}")
-        put(ws, f"D{r}", label, align=LEFT)
-        ws[f"E{r}"].border = BOX
-        put(ws, f"F{r}", formula, fmt=fmt)
+        put(ws, f"A{r}", label, align=LEFT)
+        put(ws, f"B{r}", formula, fmt=fmt, align=LEFT)
 
-    header = ("CO", "Course Learning Outcome", "PLG", "Max Marks", "Assessed", "Exceed", "Meet",
-              "Does not meet", "% Meet or Exceed", "Target", "Result")
+    # Each CO has its own cut-offs and target (the yellow cells), and its results use them.
     start = 12
+    merge(ws, f"E{start - 1}:G{start - 1}", "Cut-offs and target for each CO (edit the yellow cells)", bold=True, fill=INPUT)
+    merge(ws, f"H{start - 1}:M{start - 1}", "Results", bold=True, fill=HEAD)
+    ws.row_dimensions[start - 1].height = 32
+    header = ("CO", "Course Learning Outcome", "PLG", "Max Marks", "Exceed at least", "Meet at least", "Target",
+              "Assessed", "Exceed", "Meet", "Does not meet", "% Meet or Exceed", "Result")
     for n, text in enumerate(header):
         put(ws, f"{col(1 + n)}{start}", text, bold=True, fill=HEAD)
     for i, clo in enumerate(clos):
@@ -280,32 +274,35 @@ def build_summary(wb, code, sample):
         put(ws, f"B{r}", clo["text"], align=LEFT)
         put(ws, f"C{r}", f"PLG {clo['plg']}")
         put(ws, f"D{r}", f"=SUMIF({m}${q_first}$7:${q_last}$7,A{r},{m}${q_first}$6:${q_last}$6)", fmt="0")
-        put(ws, f"E{r}", f"=COUNT({scores})", fmt="0")
-        put(ws, f"F{r}", f'=COUNTIF({scores},">="&$B$4*D{r})', fmt="0")
-        put(ws, f"G{r}", f'=COUNTIF({scores},">="&$B$5*D{r})-F{r}', fmt="0")
-        put(ws, f"H{r}", f"=E{r}-F{r}-G{r}", fmt="0")
-        put(ws, f"I{r}", f"=IF(E{r}=0,0,(F{r}+G{r})/E{r})", fmt="0.0%")
-        put(ws, f"J{r}", "=$B$6", fmt="0%")
-        put(ws, f"K{r}", f'=IF(E{r}=0,"",IF(I{r}>=J{r},"Target met","Below target"))', bold=True)
+        put(ws, f"E{r}", EXCEED_AT, fill=INPUT, color=BLUE, fmt="0%")
+        put(ws, f"F{r}", MEET_AT, fill=INPUT, color=BLUE, fmt="0%")
+        put(ws, f"G{r}", TARGET_SHARE, fill=INPUT, color=BLUE, fmt="0%")
+        put(ws, f"H{r}", f"=COUNT({scores})", fmt="0")
+        put(ws, f"I{r}", f'=COUNTIF({scores},">="&E{r}*D{r})', fmt="0")
+        put(ws, f"J{r}", f'=COUNTIF({scores},">="&F{r}*D{r})-I{r}', fmt="0")
+        put(ws, f"K{r}", f"=H{r}-I{r}-J{r}", fmt="0")
+        put(ws, f"L{r}", f"=IF(H{r}=0,0,(I{r}+J{r})/H{r})", fmt="0.0%")
+        put(ws, f"M{r}", f'=IF(H{r}=0,"",IF(F{r}>=E{r},"Check cut-offs",IF(L{r}>=G{r},"Target met","Below target")))', bold=True)
         ws.row_dimensions[r].height = 54
 
     notes = ["Notes",
              "CO here means Course Learning Outcome: CO1 is CLO1 in the Course Outline and AoL Plan.",
-             "The cut-offs and target are drafts for faculty to check; none comes from the handbook.",
-             "The Course Planner starts from the cut-offs and target set here when this file is uploaded. Its sliders can then change the cut-offs for the report.",
+             "Each CO has its own cut-offs and target in the yellow cells: Exceed at least, Meet at least (below Exceed), and the share of students who should meet or exceed. They are drafts for faculty to check; none comes from the handbook.",
+             "The Course Planner starts from each CO's cut-offs and target set here when this file is uploaded. Its sliders can then change the cut-offs for the report, for one CO or for all.",
              "AB means absent. A student with no marks at all for a CO is left out of its Assessed count.",
              "Edit only the blue marks on the Marks Sheet and the yellow cells here; everything else recalculates."]
     if sample:
         notes.insert(1, f"Sample results: all marks in this file are illustrative, standing in for the {SAMPLE_YEAR} offering.")
     for n, text in enumerate(notes):
         r = start + len(clos) + 2 + n
-        ws.merge_cells(f"A{r}:K{r}")
+        ws.merge_cells(f"A{r}:M{r}")
         cell = ws[f"A{r}"]
         cell.value = text
         cell.font = Font(name=FONT, size=11, bold=n == 0)
         cell.alignment = LEFT
+        ws.row_dimensions[r].height = 15 * (1 + len(text) // 160)
 
-    for letter, width in zip("ABCDEFGHIJK", (38, 44, 8, 9, 10, 9, 9, 10, 11, 8, 14)):
+    for letter, width in zip("ABCDEFGHIJKLM", (22, 44, 8, 9, 10, 10, 9, 10, 9, 9, 10, 11, 14)):
         ws.column_dimensions[letter].width = width
     ws.row_dimensions[start].height = 30
     ws.page_setup.orientation = "landscape"

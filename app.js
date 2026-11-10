@@ -757,6 +757,21 @@ const PLAN_BLANKS = { outline: 'E-Logic_Course_Outline_Template.docx', aol: 'E-L
 // A CLO's band comes from the share of its marks a student earned. These match the marks sheet's own defaults.
 const DEFAULT_CUTOFFS = { exceed: 0.75, meet: 0.5 };
 const DEFAULT_TARGET = 0.7;
+// Each CLO has its own cut-offs and target, as on the marks sheet's AoL Summary tab.
+const cutsOf = (marks) => (Array.isArray(marks.cutoffs) ? marks.cutoffs : marks.clos.map(() => ({ ...(marks.cutoffs || DEFAULT_CUTOFFS) })));
+const targetsOf = (marks) => (Array.isArray(marks.targets) ? marks.targets : marks.clos.map(() => marks.target ?? DEFAULT_TARGET));
+const sameCuts = (a, b) => a.length === b.length && a.every((c, i) => c.exceed === b[i].exceed && c.meet === b[i].meet);
+let planCutScope = 'all'; // which CLO the Results sliders move: 'all', or a CLO's index
+
+// Marks saved before cut-offs were per CLO had one set for every CLO.
+function perCloMarks(marks) {
+  if (!marks || !marks.clos) return marks;
+  const sheet = marks.sheetCutoffs;
+  marks.cutoffs = cutsOf(marks);
+  marks.sheetCutoffs = Array.isArray(sheet) ? sheet : marks.clos.map(() => ({ ...(sheet || marks.cutoffs[0]) }));
+  marks.targets = targetsOf(marks);
+  return marks;
+}
 const HIGHER_ORDER = 4; // Bloom's level from which an item asks students to analyse, evaluate or create
 const JSZIP = 'https://cdn.jsdelivr.net/npm/jszip@3.10.2/+esm';
 const PIZZIP = 'https://cdn.jsdelivr.net/npm/pizzip@3.3.0/+esm';
@@ -820,7 +835,7 @@ async function loadSavedMarks() {
       const saved = await templateStore('readonly', (s) => s.get(`marks:${c['Subject Code']}`));
       if (!saved) continue;
       // Marks saved before the Results tab kept only class totals, so read those files again.
-      planMarks[c['Subject Code']] = saved.clos ? saved : { ...saved, ...(await readMarks(c['Subject Code'], new File([saved.blob], saved.name))) };
+      planMarks[c['Subject Code']] = perCloMarks(saved.clos ? saved : { ...saved, ...(await readMarks(c['Subject Code'], new File([saved.blob], saved.name))) });
     } catch (e) { /* storage blocked: the reports keep their sample results */ }
   }
 }
@@ -933,19 +948,39 @@ const bandFields = ({ exceed, meet, below }) => {
   return { exceed_n: count(exceed), exceed_pct: pct(exceed), meet_n: count(meet), meet_pct: pct(meet), below_n: count(below), below_pct: pct(below) };
 };
 
-// The AoL Summary's yellow cells can change the cut-offs, and the report must agree with that sheet.
-function readCutoffs(book) {
+// The AoL Summary's yellow cells set each CO's cut-offs and target, and the report must agree with that sheet.
+function readCutoffs(book, count) {
+  const fallback = { cutoffs: Array.from({ length: count }, () => ({ ...DEFAULT_CUTOFFS })), targets: Array(count).fill(DEFAULT_TARGET) };
   const sheet = book.getWorksheet('AoL Summary');
-  if (!sheet) return { cutoffs: DEFAULT_CUTOFFS };
-  const value = (label) => {
-    for (let r = 1; r <= sheet.rowCount; r++) if (cellText(sheet.getCell(r, 1)) === label) return Number(cellText(sheet.getCell(r, 2)));
-    return null;
-  };
-  const target = value('Target: students meeting or exceeding') ?? DEFAULT_TARGET;
-  const exceed = value('Exceed Expectation: at least') ?? DEFAULT_CUTOFFS.exceed;
-  const meet = value('Meet Expectation: at least') ?? DEFAULT_CUTOFFS.meet;
-  if (!(meet > 0 && meet < exceed && exceed <= 1)) return { error: 'Check the cut-offs on the AoL Summary tab: Exceed must be above Meet, and both between 0% and 100%.' };
-  return { cutoffs: { exceed, meet }, target };
+  if (!sheet) return fallback;
+  const num = (cell) => { const t = cellText(cell); return t === '' ? null : Number(t); };
+  let head = 0;
+  for (let r = 1; r <= Math.min(sheet.rowCount, 40) && !head; r++) if (cellText(sheet.getCell(r, 1)) === 'CO') head = r;
+  const cols = {};
+  if (head) sheet.getRow(head).eachCell((cell, c) => { cols[cellText(cell)] = c; });
+  let found;
+  if (head && cols['Exceed at least'] && cols['Meet at least']) {
+    found = { cutoffs: [], targets: [] };
+    for (let i = 0; i < count; i++) {
+      const r = head + 1 + i;
+      if (cellText(sheet.getCell(r, 1)) !== `CO${i + 1}`) return { error: `The AoL Summary tab should list CO${i + 1} in row ${r}.` };
+      found.cutoffs.push({ exceed: num(sheet.getCell(r, cols['Exceed at least'])) ?? DEFAULT_CUTOFFS.exceed, meet: num(sheet.getCell(r, cols['Meet at least'])) ?? DEFAULT_CUTOFFS.meet });
+      found.targets.push(cols.Target ? num(sheet.getCell(r, cols.Target)) ?? DEFAULT_TARGET : DEFAULT_TARGET);
+    }
+  } else {
+    // Older sheets had one set of cut-offs for the whole subject.
+    const value = (label) => {
+      for (let r = 1; r <= sheet.rowCount; r++) if (cellText(sheet.getCell(r, 1)) === label) return Number(cellText(sheet.getCell(r, 2)));
+      return null;
+    };
+    const one = { exceed: value('Exceed Expectation: at least') ?? DEFAULT_CUTOFFS.exceed, meet: value('Meet Expectation: at least') ?? DEFAULT_CUTOFFS.meet };
+    found = { cutoffs: Array.from({ length: count }, () => ({ ...one })), targets: Array(count).fill(value('Target: students meeting or exceeding') ?? DEFAULT_TARGET) };
+  }
+  for (const [i, { exceed, meet }] of found.cutoffs.entries()) {
+    if (!(meet > 0 && meet < exceed && exceed <= 1)) return { error: `Check CO${i + 1}’s cut-offs on the AoL Summary tab: Exceed must be above Meet, and both between 0% and 100%.` };
+    if (!(found.targets[i] > 0 && found.targets[i] <= 1)) return { error: `Check CO${i + 1}’s target on the AoL Summary tab: it must be between 0% and 100%.` };
+  }
+  return found;
 }
 
 const loadCoaching = async () => {
@@ -978,11 +1013,12 @@ function draftReview(clo, cutoffs, target) {
 
 // Sets the cut-offs for a subject's marks and works out what depends on them. Text faculty have written stays as it is.
 function applyCutoffs(marks, cutoffs) {
-  marks.cutoffs = cutoffs;
-  marks.results = marks.clos.map((clo) => bandFields(countBands(clo, cutoffs)));
+  marks.cutoffs = (Array.isArray(cutoffs) ? cutoffs : marks.clos.map(() => cutoffs)).map((c) => ({ exceed: c.exceed, meet: c.meet }));
+  const targets = targetsOf(marks);
+  marks.results = marks.clos.map((clo, i) => bandFields(countBands(clo, marks.cutoffs[i])));
   marks.review = marks.clos.map((clo, i) => {
     const old = (marks.review || [])[i] || {};
-    const draft = draftReview(clo, cutoffs, marks.target);
+    const draft = draftReview(clo, marks.cutoffs[i], targets[i]);
     return { ...old, analysis: old.analysisEdited ? old.analysis : draft.analysis, improvement: old.improvementEdited ? old.improvement : draft.improvement };
   });
 }
@@ -1005,7 +1041,7 @@ async function readMarks(code, file) {
   const named = (cellText(sheet.getCell('C2')).match(/[A-Z]{3}\d{3}/) || [])[0];
   if (named && named !== code) return { error: `This marks sheet is for ${named}, but ${code} is selected.` };
   const { clos } = await subjectFields(code);
-  const { cutoffs, target, error: cutoffError } = readCutoffs(book);
+  const { cutoffs, targets, error: cutoffError } = readCutoffs(book, clos.length);
   if (cutoffError) return { error: cutoffError };
   const bloomRow = labelRow(sheet, 'Bloom\'s Level');
   const { columns, error } = markedColumns(sheet, { outcome: outcomeRow, marks: marksRow, question: labelRow(sheet, 'Question'), bloom: bloomRow }, clos.length);
@@ -1014,7 +1050,7 @@ async function readMarks(code, file) {
   if (counted.error) return counted;
   if (counted.clos.every((c) => !c.scores.length)) return { error: 'No marks found. Enter marks on the Marks Sheet, then upload it again.' };
   const missing = clos.filter((c, i) => !counted.clos[i].scores.length).map((c) => `CLO${c.n}`);
-  const marks = { clos: counted.clos, students: counted.students, target, sheetCutoffs: cutoffs,
+  const marks = { clos: counted.clos, students: counted.students, targets, target: targets[0], sheetCutoffs: cutoffs.map((c) => ({ ...c })),
     warnings: missing.length ? [`No marks for ${missing.join(', ')}, so the report shows a dash for ${missing.length === 1 ? 'it' : 'them'}.`] : [] };
   applyCutoffs(marks, cutoffs);
   return marks;
@@ -1062,10 +1098,16 @@ async function highlightText(blob, passages) {
 }
 
 const percent = (share) => `${Math.round(share * 1000) / 10}%`;
-const cutoffRule = ({ exceed, meet }) => `Exceed Expectation is ${percent(exceed)} or more of the marks for that CLO, `
+const oneRule = ({ exceed, meet }) => `Exceed Expectation is ${percent(exceed)} or more of the marks for that CLO, `
   + `Meet Expectation is ${percent(meet)} up to ${percent(exceed)}, and Does not meet Expectation is below ${percent(meet)}.`;
+// The report's rule: one sentence when every CLO shares the cut-offs, otherwise the cut-offs CLO by CLO.
+const cutoffRule = (cutoffs) => {
+  const list = Array.isArray(cutoffs) ? cutoffs : [cutoffs];
+  if (list.every((c) => c.exceed === list[0].exceed && c.meet === list[0].meet)) return oneRule(list[0]);
+  return `The cut-offs differ by CLO (Exceed Expectation from / Meet Expectation from): ${list.map((c, i) => `CLO${i + 1} ${percent(c.exceed)} / ${percent(c.meet)}`).join('; ')}. Below the Meet cut-off is Does not meet Expectation.`;
+};
 
-const withMarks = (fields, marks) => ({ ...fields, results_note: marks.sample ? fields.results_note : `From the marks in ${marks.name}.`, results_rule: cutoffRule(marks.cutoffs || DEFAULT_CUTOFFS),
+const withMarks = (fields, marks) => ({ ...fields, results_note: marks.sample ? fields.results_note : `From the marks in ${marks.name}.`, results_rule: cutoffRule(cutsOf(marks)),
   clos: fields.clos.map((c, i) => ({ ...c, ...marks.results[i], ...marks.review[i] })) });
 
 // One document for a subject: built live if it has an uploaded template or marks, otherwise the reviewed file.
@@ -1423,30 +1465,35 @@ function distributionChart(clo, n, cutoffs, top) {
 
 function resultsTable(marks) {
   const pct = (n, all) => (all ? `${(n / all * 100).toFixed(1)}%` : '-');
+  const cuts = cutsOf(marks);
+  const targets = targetsOf(marks);
   const rows = marks.clos.map((clo, i) => {
-    const bands = countBands(clo, marks.cutoffs);
+    const bands = countBands(clo, cuts[i]);
     const shares = clo.scores.map(({ got }) => got / clo.most * 100);
     const n = shares.length;
-    const status = n ? cloStatus(bands, marks.target) : null;
+    const status = n ? cloStatus(bands, targets[i]) : null;
     return el('tr', {}, el('td', {}, el('strong', { text: `CLO${i + 1}` })), el('td', { class: 'num', text: String(n) }),
       el('td', { class: 'num', text: pct(shares.reduce((a, b) => a + b, 0) / 100, n) }),
       el('td', { class: 'num', text: n ? `${Math.min(...shares).toFixed(0)}% to ${Math.max(...shares).toFixed(0)}%` : '-' }),
+      el('td', { class: 'num', text: `${percent(cuts[i].meet)} / ${percent(cuts[i].exceed)}` }),
       ['exceed', 'meet', 'below'].map((band) => el('td', { class: 'num', text: `${bands[band]} (${pct(bands[band], n)})` })),
       el('td', { class: 'num', text: pct(bands.exceed + bands.meet, n) }),
+      el('td', { class: 'num', text: percent(targets[i]) }),
       el('td', {}, status ? el('span', { class: `res-status res-status-${status}`, text: STATUS_LABEL[status] }) : '-'));
   });
   return el('table', { class: 'dt dt-compact' },
-    el('thead', {}, el('tr', {}, ['CLO', 'Students', 'Average', 'Range', 'Exceed', 'Meet', 'Does not meet', 'Met or exceeded', `Against ${percent(marks.target)} target`].map((text) => el('th', { text })))),
+    el('thead', {}, el('tr', {}, ['CLO', 'Students', 'Average', 'Range', 'Meet / Exceed from', 'Exceed', 'Meet', 'Does not meet', 'Met or exceeded', 'Target', 'Against target'].map((text) => el('th', { text })))),
     el('tbody', {}, rows));
 }
 
 // Students in each band across the CLOs, as the sliders now stand, and the change from the marks sheet's cut-offs.
 function bandSummary(marks) {
-  const sheet = marks.sheetCutoffs || marks.cutoffs;
-  const moved = sheet.exceed !== marks.cutoffs.exceed || sheet.meet !== marks.cutoffs.meet;
+  const cuts = cutsOf(marks);
+  const sheet = Array.isArray(marks.sheetCutoffs) ? marks.sheetCutoffs : cuts;
+  const moved = !sameCuts(sheet, cuts);
   const clos = marks.clos.map((clo, i) => ({ i, clo })).filter(({ clo }) => clo.scores.length);
-  const now = clos.map(({ clo }) => countBands(clo, marks.cutoffs));
-  const was = clos.map(({ clo }) => countBands(clo, sheet));
+  const now = clos.map(({ clo, i }) => countBands(clo, cuts[i]));
+  const was = clos.map(({ clo, i }) => countBands(clo, sheet[i]));
   const cell = (n, before, all) => el('td', { class: 'num' }, el('strong', { text: String(n) }),
     moved && n !== before ? el('span', { class: `res-delta ${n > before ? 'is-up' : 'is-down'}`, text: ` ${n > before ? '+' : '−'}${Math.abs(n - before)}` }) : null,
     all ? el('span', { class: 'fine', text: ` (${percent(n / all)})` }) : null);
@@ -1462,9 +1509,14 @@ function bandSummary(marks) {
       el('td', { class: 'num', text: String(assessed) }))));
 }
 
+// The cut-offs the sliders show: the chosen CLO's, or with All CLOs the first CLO's.
+const shownCut = (marks) => cutsOf(marks)[planCutScope === 'all' ? 0 : planCutScope] || cutsOf(marks)[0];
+
 function paintResults() {
   const marks = planMarks[planResultsCode];
-  const { exceed, meet } = marks.cutoffs;
+  const cuts = cutsOf(marks);
+  const targets = targetsOf(marks);
+  const { exceed, meet } = shownCut(marks);
   const bins = marks.clos.map((clo) => {
     const counts = new Map();
     for (const { got } of clo.scores) {
@@ -1479,11 +1531,14 @@ function paintResults() {
   $('res-range-below').textContent = `0% to below ${percent(meet)}`;
   $('res-range-meet').textContent = `${percent(meet)} to below ${percent(exceed)}`;
   $('res-range-exceed').textContent = `${percent(exceed)} to 100%`;
-  const { sheetCutoffs: sheet = marks.cutoffs } = marks;
-  const moved = sheet.exceed !== exceed || sheet.meet !== meet;
+  const sheet = Array.isArray(marks.sheetCutoffs) ? marks.sheetCutoffs : cuts;
+  const moved = !sameCuts(sheet, cuts);
+  const changed = cuts.map((c, i) => (c.exceed !== sheet[i].exceed || c.meet !== sheet[i].meet ? `CLO${i + 1}` : '')).filter(Boolean);
+  const differ = !cuts.every((c) => c.exceed === cuts[0].exceed && c.meet === cuts[0].meet);
   $('res-reset').hidden = !moved;
-  $('res-sheet-note').textContent = moved ? `The marks sheet says ${percent(sheet.meet)} and ${percent(sheet.exceed)}. The AoL Report will use these sliders, so its numbers will differ from the sheet’s AoL Summary tab.` : '';
-  $('res-charts').replaceChildren(...marks.clos.map((clo, i) => (clo.scores.length ? distributionChart(clo, i + 1, marks.cutoffs, top)
+  $('res-scope-note').textContent = planCutScope === 'all' && differ ? 'The CLOs have different cut-offs; the handles show CLO1’s. Moving a handle gives every CLO the same cut-offs.' : '';
+  $('res-sheet-note').textContent = moved ? `${changed.join(', ')} ${changed.length === 1 ? 'differs' : 'differ'} from the marks sheet’s cut-offs. The AoL Report will use these sliders, so its numbers will differ from the sheet’s AoL Summary tab.` : '';
+  $('res-charts').replaceChildren(...marks.clos.map((clo, i) => (clo.scores.length ? distributionChart(clo, i + 1, cuts[i], top)
     : el('figure', { class: 'res-chart' }, el('figcaption', {}, el('strong', { text: `CLO${i + 1}` }), ' No marks for this CLO.')))));
   $('res-table').replaceChildren(resultsTable(marks));
   $('res-overall-box').replaceChildren(bandSummary(marks));
@@ -1493,7 +1548,7 @@ function paintResults() {
     if (!card) return;
     card.querySelector('.res-analysis').value = marks.review[i].analysis;
     card.querySelector('.res-plan').value = marks.review[i].improvement;
-    const status = clo.scores.length ? cloStatus(countBands(clo, marks.cutoffs), marks.target) : null;
+    const status = clo.scores.length ? cloStatus(countBands(clo, cuts[i]), targets[i]) : null;
     const pill = card.querySelector('.res-status');
     if (status && card.dataset.status !== status) { card.dataset.status = status; fillReviewCoaching(card, clo, status, i); }
     if (status) { pill.className = `res-status res-status-${status}`; pill.textContent = STATUS_LABEL[status]; }
@@ -1502,10 +1557,10 @@ function paintResults() {
 
 function moveCutoff(which, value) {
   const marks = planMarks[planResultsCode];
-  const { exceed, meet } = marks.cutoffs;
+  const { exceed, meet } = shownCut(marks);
   const next = which === 'meet' ? { exceed, meet: Math.max(1, Math.min(value, exceed * 100 - 1)) / 100 }
     : { meet, exceed: Math.min(100, Math.max(value, meet * 100 + 1)) / 100 };
-  applyCutoffs(marks, next);
+  applyCutoffs(marks, cutsOf(marks).map((c, i) => (planCutScope === 'all' || planCutScope === i ? next : c)));
   $('res-meet').value = Math.round(next.meet * 100);
   $('res-exceed').value = Math.round(next.exceed * 100);
   paintResults();
@@ -1568,13 +1623,24 @@ async function renderResults() {
   const head = [el('div', { class: 'toolbar' }, el('label', { class: 'select' }, el('span', { text: 'Subject' }), picker)), marksBar(planResultsCode)];
   const marks = planMarks[planResultsCode];
   if (!marks) { $('plan-panel-results').replaceChildren(...head); return; }
-  const slider = (id, which, label) => el('input', { type: 'range', id, min: 0, max: 100, step: 1, 'aria-label': label, value: Math.round(marks.cutoffs[which] * 100),
+  perCloMarks(marks);
+  if (planCutScope !== 'all' && !(planCutScope < marks.clos.length)) planCutScope = 'all';
+  const slider = (id, which, label) => el('input', { type: 'range', id, min: 0, max: 100, step: 1, 'aria-label': label, value: Math.round(shownCut(marks)[which] * 100),
     oninput: (e) => moveCutoff(which, Number(e.target.value)), onchange: () => saveMarks(planResultsCode) });
   const range = (band, label) => el('div', { class: 'res-range' }, el('i', { class: `res-key res-${band}` }), el('strong', { text: label }), el('span', { id: `res-range-${band}` }));
   $('plan-panel-results').replaceChildren(...head,
     el('p', { class: 'plan-intro' }, `Marks from ${marks.name}, ${plural(marks.students, 'student')}. Drag the two handles to set where each band starts and ends. The bands meet, so the top of one is the bottom of the next.`),
     el('div', { class: 'res-top' },
     el('section', { class: 'res-bands' },
+      el('div', { class: 'res-scope' }, el('label', { class: 'select' }, el('span', { text: 'Cut-offs for' }),
+        el('select', { id: 'res-scope', onchange: (e) => {
+          planCutScope = e.target.value === 'all' ? 'all' : Number(e.target.value);
+          $('res-meet').value = Math.round(shownCut(marks).meet * 100);
+          $('res-exceed').value = Math.round(shownCut(marks).exceed * 100);
+          paintResults();
+        } }, el('option', { value: 'all', text: 'All CLOs', selected: planCutScope === 'all' }),
+          marks.clos.map((c, i) => el('option', { value: String(i), text: `CLO${i + 1}`, selected: planCutScope === i }))))),
+      el('p', { class: 'fine', id: 'res-scope-note' }),
       el('div', { class: 'band-slider', id: 'res-slider' }, slider('res-meet', 'meet', 'Lowest mark for Meet Expectation, in percent'), slider('res-exceed', 'exceed', 'Lowest mark for Exceed Expectation, in percent')),
       el('div', { class: 'band-scale', 'aria-hidden': 'true' }, [0, 25, 50, 75, 100].map((t) => el('span', { text: `${t}%` }))),
       el('div', { class: 'res-ranges' }, range('below', 'Does not meet'), range('meet', 'Meet'), range('exceed', 'Exceed')),
@@ -1601,7 +1667,7 @@ async function renderResults() {
   marks.clos.forEach((clo, i) => {
     const card = $(`res-review-${i}`);
     if (!card) return;
-    const status = cloStatus(countBands(clo, marks.cutoffs), marks.target);
+    const status = cloStatus(countBands(clo, cutsOf(marks)[i]), targetsOf(marks)[i]);
     card.dataset.status = status;
     fillReviewCoaching(card, clo, status, i);
   });

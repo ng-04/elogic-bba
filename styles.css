@@ -677,3 +677,7 @@ select option:disabled { color: #9aa0ab; }
 .res-delta.is-up { color: var(--green); }
 .res-delta.is-down { color: var(--red); }
 @media (max-width: 1000px) { .res-top { grid-template-columns: 1fr; } }
+.res-scope { margin-bottom: 8px; }
+.res-scope .select { min-height: 40px; }
+.res-scope .select span { white-space: nowrap; }
+#res-scope-note:empty { display: none; }
