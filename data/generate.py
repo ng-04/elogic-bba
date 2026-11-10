@@ -1065,17 +1065,17 @@ story += [
 # Page 10: outcomes, internships, placements
 story += heading("Outcomes", "What our graduates can do")
 story += [
-    P("The BBA is designed backwards from seven <b>programme outcomes (POs)</b>. Every subject maps to at least two of "
-      "them, and progress is reviewed each year by the Programme Director and the Dean."),
-    table([["PO", "Programme outcome", "Key subjects"],
-           ["PO1", "<b>Business knowledge.</b> Apply concepts of management, economics, accounting, marketing, finance and HR to business situations.", "BBA101, BBA102, BBA301, BBA302"],
-           ["PO2", "<b>Critical thinking.</b> Analyse problems with data and evidence and recommend sound decisions.", "BBA204, BBA305, BBA402, BBA501"],
-           ["PO3", "<b>Communication.</b> Write, present and negotiate clearly and persuasively.", "BBA105, BBA306, BBA503"],
-           ["PO4", "<b>Leadership and teamwork.</b> Lead and work in diverse teams, giving and taking feedback.", "BBA201, BBA406, BBA504"],
-           ["PO5", "<b>Ethics and sustainability.</b> Act responsibly towards stakeholders, society and the environment.", "BBA107, BBA207, BBA502"],
-           ["PO6", "<b>Digital fluency.</b> Use spreadsheets, analytics and digital platforms to run and improve a business.", "BBA106, BBA305, BAN511"],
-           ["PO7", "<b>Entrepreneurial mindset.</b> Spot opportunities, test ideas and build ventures; keep learning.", "BBA206, BBA404, BBA603"]],
-          [12 * mm, CONTENT_W - 12 * mm - 42 * mm, 42 * mm]),
+    P("The BBA is built on six fixed <b>programme outcomes (POs)</b>, also called programme learning goals (PLGs). "
+      "Each subject's Course Outline maps its course learning outcomes (CLOs) to these POs: the CLOs change from course "
+      "to course, the POs do not. Progress is reviewed each year by the Programme Director and the Dean."),
+    table([["PO", "Programme outcome"],
+           ["PO1", "<b>Applied Knowledge.</b> Objective: To be able to apply concepts to real-world situations."],
+           ["PO2", "<b>Analytical Thinking.</b> Objective: To be able to critically assess situations by integrating learning from various domains."],
+           ["PO3", "<b>Decision Making.</b> Objective: To be able to arrive at a decision using suitable decision-making tools."],
+           ["PO4", "<b>Communication.</b> Objective: To demonstrate effective business communication skills."],
+           ["PO5", "<b>Ethics.</b> Objective: To demonstrate understanding of ethical considerations in a given context."],
+           ["PO6*", "<b>Leadership*.</b> Objective: Demonstrate ability to take leadership roles in business situations."]],
+          [14 * mm, CONTENT_W - 14 * mm]),
     Spacer(1, 6),
     P("Programme-specific outcomes by specialisation", h2),
     *bullets(["<b>Marketing:</b> plan and measure a brand or sales campaign end to end.",
