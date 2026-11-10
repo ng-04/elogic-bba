@@ -3,7 +3,7 @@
  "COURSE_NAME": "FINANCIAL MANAGEMENT",
  "course_code": "BBA302",
  "programme": "Bachelor of Business Administration (BBA)",
- "batch": "2025-28",
+ "batch": "2025-29",
  "semester": "III",
  "credits": "4",
  "academic_year": "2026-27",
@@ -69,7 +69,9 @@
    "meet_n": "28",
    "meet_pct": "73.7%",
    "below_n": "1",
-   "below_pct": "2.6%"
+   "below_pct": "2.6%",
+   "analysis": "97.4% of students met or exceeded expectations against a target of 70%, and 2.6% did not meet them. The class averaged 66.8% on this CLO. The lowest-scoring item was Mid-Term Q1 (65.9%).",
+   "improvement": "Keep the current approach, and raise the Bloom's level of Mid-Term Q1 so the CLO is tested in more depth."
   },
   {
    "n": 2,
@@ -85,7 +87,9 @@
    "meet_n": "20",
    "meet_pct": "50.0%",
    "below_n": "8",
-   "below_pct": "20.0%"
+   "below_pct": "20.0%",
+   "analysis": "80.0% of students met or exceeded expectations against a target of 70%, and 20.0% did not meet them. The class averaged 65.9% on this CLO. It was assessed through End-Term Capital Budgeting.",
+   "improvement": "Add one more practice case on End-Term Capital Budgeting, and share two sample answers at different rubric levels."
   },
   {
    "n": 3,
@@ -101,7 +105,9 @@
    "meet_n": "19",
    "meet_pct": "47.5%",
    "below_n": "13",
-   "below_pct": "32.5%"
+   "below_pct": "32.5%",
+   "analysis": "67.5% of students met or exceeded expectations against a target of 70%, and 32.5% did not meet them. The class averaged 57.9% on this CLO. It was assessed through End-Term Case Question.",
+   "improvement": "Add two graded practice cases on End-Term Case Question before the assessment, with a worked model answer and the rubric shared in advance."
   },
   {
    "n": 4,
@@ -117,7 +123,9 @@
    "meet_n": "25",
    "meet_pct": "62.5%",
    "below_n": "5",
-   "below_pct": "12.5%"
+   "below_pct": "12.5%",
+   "analysis": "87.5% of students met or exceeded expectations against a target of 70%, and 12.5% did not meet them. The class averaged 65.7% on this CLO. It was assessed through Case Analysis Report.",
+   "improvement": "Keep the current approach, and raise the Bloom's level of Case Analysis Report so the CLO is tested in more depth."
   }
  ],
  "results_note": "Dummy data: these results are illustrative and do not come from real student marks.",

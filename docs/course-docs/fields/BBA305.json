@@ -3,7 +3,7 @@
  "COURSE_NAME": "BUSINESS ANALYTICS WITH EXCEL & PYTHON",
  "course_code": "BBA305",
  "programme": "Bachelor of Business Administration (BBA)",
- "batch": "2025-28",
+ "batch": "2025-29",
  "semester": "III",
  "credits": "3",
  "academic_year": "2026-27",
@@ -68,7 +68,9 @@
    "meet_n": "23",
    "meet_pct": "57.5%",
    "below_n": "8",
-   "below_pct": "20.0%"
+   "below_pct": "20.0%",
+   "analysis": "80.0% of students met or exceeded expectations against a target of 70%, and 20.0% did not meet them. The class averaged 63.7% on this CLO. It was assessed through Excel and Python Labs.",
+   "improvement": "Add a revision session on Excel and Python Labs before the assessment."
   },
   {
    "n": 2,
@@ -84,7 +86,9 @@
    "meet_n": "21",
    "meet_pct": "52.5%",
    "below_n": "11",
-   "below_pct": "27.5%"
+   "below_pct": "27.5%",
+   "analysis": "72.5% of students met or exceeded expectations against a target of 70%, and 27.5% did not meet them. The class averaged 60.1% on this CLO. It was assessed through Regression and Forecasting Labs.",
+   "improvement": "Add one more practice case on Regression and Forecasting Labs, and share two sample answers at different rubric levels."
   },
   {
    "n": 3,
@@ -100,7 +104,9 @@
    "meet_n": "24",
    "meet_pct": "60.0%",
    "below_n": "16",
-   "below_pct": "40.0%"
+   "below_pct": "40.0%",
+   "analysis": "60.0% of students met or exceeded expectations against a target of 70%, and 40.0% did not meet them. The class averaged 50.3% on this CLO. It was assessed through Showcase Evaluation.",
+   "improvement": "Add two graded practice cases on Showcase Evaluation before the assessment, with a worked model answer and the rubric shared in advance."
   },
   {
    "n": 4,
@@ -116,7 +122,9 @@
    "meet_n": "25",
    "meet_pct": "62.5%",
    "below_n": "2",
-   "below_pct": "5.0%"
+   "below_pct": "5.0%",
+   "analysis": "95.0% of students met or exceeded expectations against a target of 70%, and 5.0% did not meet them. The class averaged 67.4% on this CLO. It was assessed through Showcase Presentation.",
+   "improvement": "Keep the current approach, and raise the Bloom's level of Showcase Presentation so the CLO is tested in more depth."
   }
  ],
  "results_note": "Dummy data: these results are illustrative and do not come from real student marks.",

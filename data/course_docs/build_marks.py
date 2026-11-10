@@ -37,6 +37,8 @@ NOTES = {"BBA302": "Mid-Term Q3 has no Course Outcome because the AoL Plan asses
 QUESTION_COLUMNS = 12
 ABSENT = 2  # students who miss the mid-term in the dummy marks
 EXCEED_AT, MEET_AT, TARGET_SHARE = 0.75, 0.5, 0.7
+COACHING = json.loads((HERE / "coaching.json").read_text())
+HIGHER_ORDER = 4  # Bloom's level from which an item asks students to analyse, evaluate or create
 RESULTS_NOTE = "Dummy data: these results are illustrative and do not come from real student marks."
 RESULTS_RULE = ("Exceed Expectation is 75% or more of the marks for that CLO, Meet Expectation is 50% up to 75%, "
                 "and Does not meet Expectation is below 50%.")
@@ -45,7 +47,7 @@ Q_FIRST = 5  # column E holds the first question
 TOTAL = Q_FIRST + QUESTION_COLUMNS
 CO_COLUMN = TOTAL + 1
 
-FONT = "Arial"
+FONT = "Times New Roman"
 thin = Side(style="thin", color="999999")
 BOX = Border(left=thin, right=thin, top=thin, bottom=thin)
 HEAD = PatternFill("solid", fgColor="E8EAF0")
@@ -55,7 +57,7 @@ LEFT = Alignment(horizontal="left", vertical="center", wrap_text=True)
 BLUE = "0000FF"
 
 
-def put(ws, ref, value, bold=False, fill=None, align=CENTER, color=None, fmt=None, size=10):
+def put(ws, ref, value, bold=False, fill=None, align=CENTER, color=None, fmt=None, size=11):
     cell = ws[ref]
     cell.value = value
     cell.font = Font(name=FONT, size=size, bold=bold, color=color)
@@ -105,6 +107,25 @@ def dummy_marks(code, students):
     return rows
 
 
+def fill(text, **values):
+    return text.format(**values)
+
+
+def draft_review(bands, average, items):
+    """Drafts a CLO's Analysis of Result and Improvement Plan, the same way the Course Planner page does."""
+    assessed = sum(bands.values())
+    met = (bands["exceed"] + bands["meet"]) / assessed * 100
+    target = TARGET_SHARE * 100
+    status = "below" if met < target else "near" if met < target + COACHING["near_margin"] else "above"
+    weakest = min(items, key=lambda item: item["average"])
+    values = {"met": f"{met:.1f}", "below": f"{bands['below'] / assessed * 100:.1f}", "target": f"{target:g}", "average": f"{average:.1f}",
+              "item": weakest["label"], "item_average": f"{weakest['average']:.1f}"}
+    wording = COACHING["analysis"]
+    analysis = fill(wording["lead"] + wording["several" if len(items) > 1 else "single"], **values)
+    level = "higher" if weakest["bloom"] >= HIGHER_ORDER else "lower"
+    return {"analysis": analysis, "improvement": fill(COACHING["suggestions"][status][level][0], **values)}
+
+
 def class_results(code):
     """Students in each band for each CLO, worked out as the Course Planner page does for an upload."""
     _, _, students = subject_data(code)
@@ -115,14 +136,21 @@ def class_results(code):
         columns = [(n, item[1]) for n, item in enumerate(ITEMS[code]) if item[2] == outcome]
         most = sum(top for _, top in columns)
         bands = {"exceed": 0, "meet": 0, "below": 0}
+        shares = []
         for scores in marks.values():
             got = [scores[n] for n, _ in columns if scores[n] != "AB"]
             if got:
                 score = sum(got)
+                shares.append(score / most * 100)
                 bands["exceed" if score >= EXCEED_AT * most else "meet" if score >= MEET_AT * most else "below"] += 1
         assessed = sum(bands.values())
-        results.append({key: value for band, count in bands.items()
-                        for key, value in ((f"{band}_n", str(count)), (f"{band}_pct", f"{count / assessed * 100:.1f}%"))})
+        items = []
+        for n, top in columns:
+            got = [scores[n] / top * 100 for scores in marks.values() if scores[n] != "AB"]
+            items.append({"label": ITEMS[code][n][0], "bloom": ITEMS[code][n][3], "average": sum(got) / len(got)})
+        results.append({**{key: value for band, count in bands.items()
+                           for key, value in ((f"{band}_n", str(count)), (f"{band}_pct", f"{count / assessed * 100:.1f}%"))},
+                        **draft_review(bands, sum(shares) / len(shares), items)})
     return results
 
 
@@ -213,7 +241,7 @@ def build_summary(wb, code, sample):
 
     ws.merge_cells("A1:K1")
     title = f"{code} {subject['Subject']}: AoL Summary" + (" (dummy data)" if sample else "")
-    put(ws, "A1", title, bold=True, size=13, align=LEFT).border = Border()
+    put(ws, "A1", title, bold=True, size=14, align=LEFT).border = Border()
 
     put(ws, "A3", "Cut-offs (edit the yellow cells)", bold=True, fill=HEAD, align=LEFT)
     put(ws, "B3", "Value", bold=True, fill=HEAD)
@@ -262,7 +290,7 @@ def build_summary(wb, code, sample):
     notes = ["Notes",
              "CO here means Course Learning Outcome: CO1 is CLO1 in the Course Outline and AoL Plan.",
              "The cut-offs and target are drafts for faculty to check; none comes from the handbook.",
-             "The AoL Report uses the two cut-offs set here when this file is uploaded. The target isn't shown in the report.",
+             "The Course Planner starts from the cut-offs and target set here when this file is uploaded. Its sliders can then change the cut-offs for the report.",
              "AB means absent. A student with no marks at all for a CO is left out of its Assessed count.",
              "Edit only the blue marks on the Marks Sheet and the yellow cells here; everything else recalculates."]
     if sample:
@@ -272,7 +300,7 @@ def build_summary(wb, code, sample):
         ws.merge_cells(f"A{r}:K{r}")
         cell = ws[f"A{r}"]
         cell.value = text
-        cell.font = Font(name=FONT, size=10, bold=n == 0)
+        cell.font = Font(name=FONT, size=11, bold=n == 0)
         cell.alignment = LEFT
 
     for letter, width in zip("ABCDEFGHIJK", (38, 44, 8, 9, 10, 9, 9, 10, 11, 8, 14)):
@@ -289,7 +317,7 @@ def build_help(wb, code, sample):
              "Enter each student's marks in the blue cells on the Marks Sheet tab, and AB if a student was absent.",
              "Each column counts towards the CLO in its Course Outcome row, so CO1 is CLO1. Columns with no Course Outcome aren't counted.",
              "Use the columns for the assessments named in the AoL Plan. Change the labels, marks and Course Outcome row if yours differ.",
-             "Then upload this file on the Templates tab of the Course Planner, and the AoL Report for this subject is built from it.",
+             "Then upload this file on the Templates tab of the Course Planner. The Results tab shows the distribution, and the AoL Report for this subject is built from it.",
              "The AoL Summary tab adds up the results with formulas as you enter marks.",
              "The marks for each column and the Bloom's levels are drafts for faculty to check; none comes from the handbook."]
     if code in NOTES:
@@ -299,7 +327,7 @@ def build_help(wb, code, sample):
     for n, text in enumerate(lines, 1):
         cell = ws[f"A{n}"]
         cell.value = text
-        cell.font = Font(name=FONT, size=12 if n == 1 else 10, bold=n == 1)
+        cell.font = Font(name=FONT, size=14 if n == 1 else 11, bold=n == 1)
         cell.alignment = LEFT
     ws.column_dimensions["A"].width = 120
 

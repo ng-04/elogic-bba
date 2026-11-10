@@ -10,7 +10,7 @@ import shutil
 import zipfile
 from pathlib import Path
 
-from build import subject_fields
+from build import PREVIOUS_YEAR, subject_fields
 
 ROOT = Path(__file__).resolve().parents[2]
 SOURCE = ROOT / "data" / "outgoing"
@@ -37,6 +37,8 @@ def strip_excel_traces(path):
 
 TARGET.mkdir(exist_ok=True)
 (TARGET / "fields").mkdir(exist_ok=True)
+(TARGET / "previous").mkdir(exist_ok=True)
+shutil.copy2(Path(__file__).parent / "coaching.json", TARGET / "coaching.json")
 index = {}
 for content in sorted((Path(__file__).parent / "content").glob("[A-Z]*[0-9]*.json")):
     code = content.stem
@@ -48,6 +50,9 @@ for content in sorted((Path(__file__).parent / "content").glob("[A-Z]*[0-9]*.jso
             if name.endswith(".xlsx"):
                 strip_excel_traces(TARGET / name)
             index[code][kind] = name
+    previous = f"{code}_Course_Outline_{PREVIOUS_YEAR}.docx"
+    shutil.copy2(SOURCE / previous, TARGET / "previous" / previous)
+    index[code]["previous"] = f"previous/{previous}"
     (TARGET / "fields" / f"{code}.json").write_text(json.dumps(subject_fields(code), indent=1, ensure_ascii=False) + "\n")
 (TARGET / "index.json").write_text(json.dumps(index, indent=2) + "\n")
 print(json.dumps(index, indent=2))

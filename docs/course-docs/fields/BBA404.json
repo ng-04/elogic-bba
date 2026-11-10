@@ -3,7 +3,7 @@
  "COURSE_NAME": "ENTREPRENEURSHIP & NEW VENTURE CREATION",
  "course_code": "BBA404",
  "programme": "Bachelor of Business Administration (BBA)",
- "batch": "2025-28",
+ "batch": "2025-29",
  "semester": "IV",
  "credits": "4",
  "academic_year": "2026-27",
@@ -69,7 +69,9 @@
    "meet_n": "17",
    "meet_pct": "42.5%",
    "below_n": "6",
-   "below_pct": "15.0%"
+   "below_pct": "15.0%",
+   "analysis": "85.0% of students met or exceeded expectations against a target of 70%, and 15.0% did not meet them. The class averaged 67.5% on this CLO. It was assessed through Venture Proposal.",
+   "improvement": "Keep the current approach, and raise the Bloom's level of Venture Proposal so the CLO is tested in more depth."
   },
   {
    "n": 2,
@@ -85,7 +87,9 @@
    "meet_n": "29",
    "meet_pct": "72.5%",
    "below_n": "5",
-   "below_pct": "12.5%"
+   "below_pct": "12.5%",
+   "analysis": "87.5% of students met or exceeded expectations against a target of 70%, and 12.5% did not meet them. The class averaged 64.3% on this CLO. It was assessed through Milestone Reviews.",
+   "improvement": "Keep the current approach, and add a stretch task for students who already exceed expectations."
   },
   {
    "n": 3,
@@ -101,7 +105,9 @@
    "meet_n": "21",
    "meet_pct": "52.5%",
    "below_n": "13",
-   "below_pct": "32.5%"
+   "below_pct": "32.5%",
+   "analysis": "67.5% of students met or exceeded expectations against a target of 70%, and 32.5% did not meet them. The class averaged 56.7% on this CLO. It was assessed through Final Written Plan.",
+   "improvement": "Add two graded practice cases on Final Written Plan before the assessment, with a worked model answer and the rubric shared in advance."
   },
   {
    "n": 4,
@@ -117,7 +123,9 @@
    "meet_n": "26",
    "meet_pct": "65.0%",
    "below_n": "7",
-   "below_pct": "17.5%"
+   "below_pct": "17.5%",
+   "analysis": "82.5% of students met or exceeded expectations against a target of 70%, and 17.5% did not meet them. The class averaged 62.0% on this CLO. It was assessed through Pitch and Viva.",
+   "improvement": "Add a revision session on Pitch and Viva before the assessment."
   }
  ],
  "results_note": "Dummy data: these results are illustrative and do not come from real student marks.",

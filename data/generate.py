@@ -1,12 +1,12 @@
 """Generates the dummy data for the E-Logic BBA demo, deterministically, from one source of truth.
 
 Outputs (in docs/):
-  E-Logic_BBA_Student_Handbook_2026-27.pdf  10-page student handbook (overview, pedagogy,
+  E-Logic_BBA_Student_Handbook_2026-27.pdf  11-page student handbook (overview, pedagogy,
                                              subjects, assessment, outcomes, calendar, contacts)
-  E-Logic_BBA_Master_Data_2026-27.xlsx       five sheets: Curriculum Master, Student Master,
+  E-Logic_BBA_Master_Data_2026-27.xlsx       six sheets: Curriculum Master, Student Master,
                                              Faculty Master, Faculty Utilization (one row per
-                                             section taught; links Faculty ID and Subject Code) and
-                                             Assumptions. Calculated columns are Excel formulas,
+                                             section taught; links Faculty ID and Subject Code),
+                                             Year 4 Electives and Assumptions. Calculated columns are Excel formulas,
                                              saved with their results.
 and site-data.json, the same data for the website's pages.
 
@@ -72,11 +72,11 @@ WEIGHTING = {
     "Workshop": "100% continuous: studio work, practicals, participation and a final showcase",
     "Project": "50% internal milestones + 50% final report and viva / presentation",
 }
-TERM = {1: "Odd (Jul-Nov 2026)", 3: "Odd (Jul-Nov 2026)", 5: "Odd (Jul-Nov 2026)",
-        2: "Even (Jan-Apr 2027)", 4: "Even (Jan-Apr 2027)", 6: "Even (Jan-Apr 2027)"}
+TERM = {sem: "Odd (Jul-Nov 2026)" if sem % 2 else "Even (Jan-Apr 2027)" for sem in range(1, 9)}
 
 # code, subject, credits, type, assessment, track (for electives), faculty id
 C, E = "Core", "Elective"
+SUSTAINABILITY = "Sustainability & Governance"  # Year 4 electives open to every track: ESG, compliance and CSR
 CURRICULUM = {
     1: [("BBA101", "Principles of Management", 4, C, "Exam", "", "F018"),
         ("BBA102", "Business Economics I (Micro)", 4, C, "Exam", "", "F004"),
@@ -134,8 +134,55 @@ CURRICULUM = {
         ("HRM612", "Labour Laws & Industrial Relations", 4, E, "Exam", "Human Resources", "F010"),
         ("BAN611", "Machine Learning for Managers", 4, E, "Project", "Business Analytics", "F013"),
         ("BAN612", "Business Intelligence with Power BI", 4, E, "Workshop", "Business Analytics", "F006")],
+    7: [("BBA701", "Advanced Strategy & Competitive Dynamics", 3, C, "Exam", "", "F021"),
+        ("BBA702", "Research Project I: Proposal & Literature Review", 3, C, "Project", "", "F022"),
+        ("MKT711", "Marketing Analytics & Customer Insight", 4, E, "Exam", "Advanced Marketing", "F023"),
+        ("MKT712", "Global Brand Strategy", 4, E, "Project", "Advanced Marketing", "F025"),
+        ("FIN711", "Derivatives & Risk Management", 4, E, "Exam", "Advanced Finance", "F024"),
+        ("FIN712", "Mergers, Acquisitions & Restructuring", 4, E, "Project", "Advanced Finance", "F024"),
+        ("HRM711", "Strategic HR & Organisation Design", 4, E, "Workshop", "Advanced Human Resources", "F026"),
+        ("HRM712", "Change Management & Culture", 4, E, "Exam", "Advanced Human Resources", "F026"),
+        ("BAN711", "Deep Learning for Business", 4, E, "Project", "Advanced Business Analytics", "F027"),
+        ("BAN712", "Big Data Platforms & Cloud Analytics", 4, E, "Workshop", "Advanced Business Analytics", "F027"),
+        ("BBA7E1", "ESG Strategy & Reporting", 4, E, "Project", SUSTAINABILITY, "F028"),
+        ("BBA7E2", "Corporate Compliance & Regulatory Risk", 4, E, "Exam", SUSTAINABILITY, "F010")],
+    8: [("BBA801", "Global Economy & Public Policy", 3, C, "Exam", "", "F021"),
+        ("BBA802", "Research Project II: Thesis & Defence", 3, C, "Project", "", "F022"),
+        ("MKT811", "Product Management & Growth", 4, E, "Workshop", "Advanced Marketing", "F023"),
+        ("MKT812", "Pricing & Revenue Management", 4, E, "Exam", "Advanced Marketing", "F023"),
+        ("FIN811", "Private Equity & Venture Capital", 4, E, "Exam", "Advanced Finance", "F024"),
+        ("FIN812", "Sustainable Finance & ESG Investing", 4, E, "Project", "Advanced Finance", "F025"),
+        ("HRM811", "Global HR & Cross-Cultural Management", 4, E, "Exam", "Advanced Human Resources", "F026"),
+        ("HRM812", "People Analytics & Workforce Planning", 4, E, "Workshop", "Advanced Human Resources", "F028"),
+        ("BAN811", "Generative AI & Decision Automation", 4, E, "Workshop", "Advanced Business Analytics", "F027"),
+        ("BAN812", "Optimisation & Prescriptive Analytics", 4, E, "Exam", "Advanced Business Analytics", "F028"),
+        ("BBA8E1", "Corporate Social Responsibility & Impact", 4, E, "Project", SUSTAINABILITY, "F019")],
 }
 TRACKS = ["Marketing", "Finance", "Human Resources", "Business Analytics"]
+YEAR4_PICKS = 4  # electives a Year 4 student takes each semester: two of their own track and two from the rest
+YEAR4_SEATS = 20
+# The advanced topics each Year 4 elective covers, and what a student should have taken first.
+YEAR4_TOPICS = {
+    "MKT711": ("Customer lifetime value, attribution, segmentation models, marketing mix modelling", "BBA403"),
+    "MKT712": ("Brand architecture, cross-border positioning, global versus local campaigns", "MKT512"),
+    "FIN711": ("Futures, options and swaps, hedging, value at risk, credit risk", "FIN511"),
+    "FIN712": ("Deal valuation, synergies, due diligence, restructuring and post-merger integration", "FIN611"),
+    "HRM711": ("Workforce strategy, organisation structures, job architecture, HR business partnering", "HRM511"),
+    "HRM712": ("Change models, resistance, culture diagnostics, leading a transformation", "BBA201"),
+    "BAN711": ("Neural networks, text and image models, model evaluation for business use", "BAN611"),
+    "BAN712": ("Data pipelines, warehouses and lakes, cloud services, data governance", "BAN612"),
+    "MKT811": ("Product discovery, roadmaps, experimentation, growth metrics", "MKT611"),
+    "MKT812": ("Price elasticity, dynamic pricing, yield management, promotion analysis", "BBA403"),
+    "FIN811": ("Fund structures, start-up valuation, term sheets, exits", "FIN611"),
+    "FIN812": ("ESG ratings, green bonds, impact measurement, climate risk disclosure", "FIN512"),
+    "HRM811": ("Expatriate management, cross-cultural teams, global reward and compliance", "HRM612"),
+    "HRM812": ("Attrition models, workforce forecasting, pay equity analysis, people dashboards", "HRM512"),
+    "BAN811": ("Large language models at work, prompt design, automation, AI risk and governance", "BAN611"),
+    "BAN812": ("Linear and integer programming, simulation, scheduling and network optimisation", "BAN512"),
+    "BBA7E1": ("ESG frameworks and ratings, materiality, BRSR and sustainability reporting, ESG in strategy", "BBA502"),
+    "BBA7E2": ("Corporate law compliance, SEBI and RBI rules, anti-bribery, compliance programmes and audits", "BBA304"),
+    "BBA8E1": ("CSR law under the Companies Act, designing CSR projects, impact measurement, stakeholder reporting", "BBA107"),
+}
 
 # Subject areas, and the area of every subject. Operations, internship, simulation and capstone count
 # as Strategy (general management); law, communication, languages and ethics as Social Science.
@@ -153,18 +200,24 @@ AREA = {
     "MKT511": MK, "MKT512": MK, "FIN511": FA, "FIN512": FA, "HRM511": HR, "HRM512": HR, "BAN511": AN, "BAN512": AN,
     "BBA601": ST, "BBA602": FA, "BBA603": ST, "BBA604": HR,
     "MKT611": MK, "MKT612": MK, "FIN611": FA, "FIN612": FA, "HRM611": HR, "HRM612": HR, "BAN611": AN, "BAN612": IS,
+    "BBA701": ST, "BBA702": AN, "BBA801": EC, "BBA802": AN,
+    "MKT711": MK, "MKT712": MK, "FIN711": FA, "FIN712": FA, "HRM711": HR, "HRM712": HR, "BAN711": AN, "BAN712": IS,
+    "MKT811": MK, "MKT812": MK, "FIN811": FA, "FIN812": FA, "HRM811": HR, "HRM812": HR, "BAN811": AN, "BAN812": AN,
+    "BBA7E1": ST, "BBA7E2": SS, "BBA8E1": SS,
 }
 assert set(AREA) == {r[0] for rows in CURRICULUM.values() for r in rows}, "every subject needs exactly one area"
 
 
 def sem_credits(sem):
-    """Credits a student earns in a semester: all core, one open elective, two subjects of one track."""
+    """Credits a student earns in a semester: all core, plus one open elective, two track subjects or four Year 4 electives."""
     rows = CURRICULUM[sem]
     core = sum(r[2] for r in rows if r[3] == C)
     if sem in (3, 4):
         return core + 2
     if sem in (5, 6):
         return core + 8
+    if sem in (7, 8):
+        return core + YEAR4_PICKS * 4
     return core
 
 
@@ -206,6 +259,14 @@ FACULTY = [
     ("F018", "Prof. Vikram Rathore", "Professor of Practice", "Strategy & International Business", "MBA; former country head, FMCG", 24, "-"),
     ("F019", "Dr. Nandini Das", "Assistant Professor", "Sustainability & Ethics", "PhD, Environmental Economics", 8, "-"),
     ("F020", "Mr. Aditya Kapoor", "Visiting Faculty", "Digital Marketing & Analytics", "MBA; Head of Analytics at a retail firm", 12, "-"),
+    ("F021", "Dr. Ritu Saxena", "Associate Professor", "Strategy & Public Policy", "PhD, Strategic Management", 15, "-"),
+    ("F022", "Dr. Mohan Krishnamurthy", "Associate Professor", "Research Methods", "PhD, Management Research", 14, "Year 4 Coordinator"),
+    ("F023", "Dr. Tara Fernandes", "Assistant Professor", "Marketing Analytics", "PhD, Quantitative Marketing", 9, "-"),
+    ("F024", "Dr. Vivek Bose", "Associate Professor", "Corporate Finance & Risk", "PhD, Finance; FRM", 13, "-"),
+    ("F025", "Dr. Zoya Mirza", "Assistant Professor", "Global Business & Sustainable Finance", "PhD, International Business", 8, "-"),
+    ("F026", "Dr. Anjali Thakur", "Associate Professor", "Strategic HR", "PhD, Organisation Studies", 12, "-"),
+    ("F027", "Prof. Rohan Pillai", "Professor of Practice", "AI & Data Engineering", "MTech (AI); former data science lead", 16, "-"),
+    ("F028", "Dr. Sameer Ansari", "Assistant Professor", "Decision Science", "PhD, Operations Research", 7, "-"),
 ]
 FAC = {f[0]: f for f in FACULTY}
 
@@ -214,6 +275,7 @@ FAC = {f[0]: f for f in FACULTY}
 FACULTY_AREA = {
     "F001": ST, "F002": FA, "F003": MK, "F004": EC, "F005": HR, "F006": AN, "F007": FA, "F008": ST, "F009": MK, "F010": SS,
     "F011": SS, "F012": ST, "F013": AN, "F014": FA, "F015": SS, "F016": EC, "F017": HR, "F018": ST, "F019": SS, "F020": MK,
+    "F021": ST, "F022": AN, "F023": MK, "F024": FA, "F025": FA, "F026": HR, "F027": AN, "F028": AN,
 }
 assert set(FACULTY_AREA) == set(FAC) and set(FACULTY_AREA.values()) <= set(SUBJECT_AREAS)
 
@@ -264,11 +326,12 @@ OCCUPATIONS = ["Business owner", "Software engineer", "Government officer", "Doc
 CATEGORIES = [("General", 50), ("OBC", 25), ("EWS", 8), ("SC", 9), ("ST", 3), ("NRI", 5)]
 ROUTES = [("E-LAT entrance test", 70), ("Merit (Class XII score)", 22), ("Sports quota", 4), ("NRI quota", 4)]
 SCHOLARSHIPS = [("None", 70), ("Merit - 25% tuition", 12), ("Merit - 50% tuition", 5), ("Need-based - 30% tuition", 9), ("Sports - 20% tuition", 4)]
-MENTORS = ["F003", "F004", "F005", "F006", "F007", "F008", "F009", "F011", "F013", "F014", "F016", "F017"]
+MENTORS = ["F003", "F004", "F005", "F006", "F007", "F008", "F009", "F011", "F013", "F014", "F016", "F017",
+           "F021", "F023", "F024", "F026"]
 
 pick = lambda pairs: random.choices([p[0] for p in pairs], [p[1] for p in pairs])[0]
-BATCHES = [  # batch year, current programme year, current semester
-    (2024, 3, 5), (2025, 2, 3), (2026, 1, 1),
+BATCHES = [  # batch year, current programme year, current semester. The final-year batch comes last so earlier students don't change.
+    (2024, 3, 5), (2025, 2, 3), (2026, 1, 1), (2023, 4, 7),
 ]
 OE1 = [r[1] for r in CURRICULUM[3] if r[3] == E]
 OE2 = [r[1] for r in CURRICULUM[4] if r[3] == E]
@@ -308,12 +371,13 @@ for batch, year, sem in BATCHES:
         sid = f"EL{batch % 100}BBA{i + 1:03d}"
         student_rows.append({
             "Student ID": sid, "Student Name": f"{first} {surname}", "Gender": gender,
-            "Date of Birth": dob.isoformat(), "Batch": f"{batch}-{(batch + 3) % 100:02d}",
+            "Date of Birth": dob.isoformat(), "Batch": f"{batch}-{(batch + 4) % 100:02d}",
             "Date of Admission": admitted.isoformat(), "Current Year": f"Year {year}", "Current Semester": sem,
             "Section": "A" if i < 20 else "B",
-            "Specialisation": tracks[i] if year == 3 else "Chosen at end of Year 2",
+            "Specialisation": tracks[i] if year >= 3 else "Chosen at end of Year 2",
             "Open Elective I (Sem 3)": random.choice(OE1) if year >= 2 else "-",
-            "Open Elective II (Sem 4)": random.choice(OE2) if year == 3 else "-",
+            "Open Elective II (Sem 4)": random.choice(OE2) if year >= 3 else "-",
+            "Year 4 Electives (Sem 7)": "-", "Year 4 Electives (Sem 8)": "-",
             "Home State": state, "Home City": random.choice(cities),
             "Parent / Guardian": parent, "Relationship": rel, "Parent Occupation": random.choice(OCCUPATIONS),
             "Parent Mobile": f"+91 9{random.randint(0, 9)}{random.randint(100, 999)} {random.randint(10000, 99999)}",
@@ -331,13 +395,44 @@ for st in student_rows:
     if st["Current Year"] == "Year 2":
         st["Open Elective II (Sem 4)"] = prereg.choice(OE2)
 
+# Each Year 4 student takes both electives of their own track in a semester, and two more from the other
+# tracks or the Sustainability & Governance electives, with seats left, so every elective fits in one
+# section. Seats are tight, so a try can run out of seats for the last few students; the next try reorders them.
+choices = random.Random(7)
+final_year = [st for st in student_rows if st["Current Year"] == "Year 4"]
+
+
+def seat_year4(sem):
+    electives = [r for r in CURRICULUM[sem] if r[3] == E]
+    own = lambda st: [r[1] for r in electives if r[5] == f"Advanced {st['Specialisation']}"]
+    while True:
+        seats = {r[1]: YEAR4_SEATS for r in electives}
+        for st in final_year:
+            for name in own(st):
+                seats[name] -= 1
+        picked = {}
+        for st in choices.sample(final_year, len(final_year)):
+            open_seats = [n for n in seats if n not in own(st) and seats[n] > 0]
+            others = sorted(open_seats, key=lambda n: (-seats[n], choices.random()))[:YEAR4_PICKS - 2]
+            for name in others:
+                seats[name] -= 1
+            picked[st["Student ID"]] = own(st) + others
+        if all(len(names) == YEAR4_PICKS for names in picked.values()):
+            return picked
+
+
+for sem in (7, 8):
+    picked = seat_year4(sem)
+    for st in final_year:
+        st[f"Year 4 Electives (Sem {sem})"] = "; ".join(picked[st["Student ID"]])
+
 # ------------------------------------------------------------------ faculty utilization
 
 # One row per section taught in 2026-27. Each section is taught (and its credits, sessions and faculty
 # credit hours consumed) separately, so a subject with two sections uses twice as much faculty time. Core subjects
 # run in the batch's own sections; an elective runs only if someone enrolled, in sections of up to 20.
 SECTION_CAP = 20
-BATCH_OF_SEM = {1: "2026-29", 2: "2026-29", 3: "2025-28", 4: "2025-28", 5: "2024-27", 6: "2024-27"}
+BATCH_OF_SEM = {1: "2026-30", 2: "2026-30", 3: "2025-29", 4: "2025-29", 5: "2024-28", 6: "2024-28", 7: "2023-27", 8: "2023-27"}
 
 
 def enrolled(r, batch_students):
@@ -347,6 +442,8 @@ def enrolled(r, batch_students):
         return [st for st in batch_students if st["Open Elective I (Sem 3)"] == r["Subject"]]
     if r["Elective Group"] == "Open Elective II":
         return [st for st in batch_students if st["Open Elective II (Sem 4)"] == r["Subject"]]
+    if r["Semester"] >= 7:
+        return [st for st in batch_students if r["Subject"] in st[f"Year 4 Electives (Sem {r['Semester']})"].split("; ")]
     return [st for st in batch_students if st["Specialisation"] == r["Elective Group"]]
 
 
@@ -386,6 +483,18 @@ for row in faculty_rows:
     row.update({"Faculty Credit Hours": fch, "Goal (Faculty Credit Hours)": FACULTY_GOAL,
                 "Utilization %": num(round(fch / FACULTY_GOAL * 100, 1))})
 
+# Year 4 Electives: the master table of what final-year students can choose.
+YEAR4_OFFERED = {sem: sum(1 for r in CURRICULUM[sem] if r[3] == E) for sem in (7, 8)}
+year4_rows = [{
+    "Semester": r["Semester"], "Subject Code": r["Subject Code"], "Elective": r["Subject"],
+    "Track": r["Elective Group"].replace("Advanced ", ""), "Credits": r["Credits"], "Assessment": r["Assessment"],
+    "Prof Name": FAC[r["Faculty ID"]][1], "Advanced Topics": YEAR4_TOPICS[r["Subject Code"]][0],
+    "Prerequisite": YEAR4_TOPICS[r["Subject Code"]][1], "Seats": YEAR4_SEATS,
+    "Enrolled": len(enrolled(r, [st for st in student_rows if st["Batch"] == BATCH_OF_SEM[r["Semester"]]])),
+} for r in curriculum_rows if r["Semester"] >= 7 and r["Type"] == E]
+assert set(YEAR4_TOPICS) == {r["Subject Code"] for r in year4_rows}
+assert all(r["Prerequisite"] in AREA for r in year4_rows)
+
 # ------------------------------------------------------------------ Excel workbook
 
 ORANGE, NAVY = "#E35A1B", "#16233F"
@@ -397,7 +506,7 @@ ASSUMPTIONS = [  # name, label, value, note
     ("FacultyGoal", "Faculty goal (faculty credit hours per academic year)", FACULTY_GOAL, "Same for every faculty member"),
 ]
 SHEETS = {"Curriculum Master": curriculum_rows, "Student Master": student_rows, "Faculty Master": faculty_rows,
-          "Faculty Utilization": utilization_rows}
+          "Faculty Utilization": utilization_rows, "Year 4 Electives": year4_rows}
 
 
 def ref(sheet, header, absolute=True):
@@ -436,6 +545,8 @@ def students_formula(n, r):
     group = next(c["Elective Group"] for c in curriculum_rows if c["Subject Code"] == r["Subject Code"])
     column = {"Open Elective I": "Open Elective I (Sem 3)", "Open Elective II": "Open Elective II (Sem 4)"}.get(group, "Specialisation")
     match = u("Subject") if column != "Specialisation" else lookup("Curriculum Master", "Subject Code", "Elective Group", u("Subject Code"))
+    if r["Semester"] >= 7:  # a Year 4 student's cell lists all four electives
+        column, match = f"Year 4 Electives (Sem {r['Semester']})", f'"*"&{u("Subject")}&"*"'
     total = f"COUNTIFS({batch},{ref('Student Master', column)},{match})"
     k = u("Number of Sections")
     return f"=INT({total}/{k})+IF(CODE({u('Section')})-64<=MOD({total},{k}),1,0)"
@@ -456,14 +567,19 @@ FORMULAS = {
         "Utilization %": lambda n, r: f"=ROUND({cell('Faculty Master', 'Faculty Credit Hours', n)}/"
                                       f"{cell('Faculty Master', 'Goal (Faculty Credit Hours)', n)}*100,1)",
     },
+    "Year 4 Electives": {
+        "Prof Name": lambda n, r: "=" + lookup("Faculty Master", "Faculty ID", "Prof Name",
+                                               lookup("Curriculum Master", "Subject Code", "Faculty ID", cell("Year 4 Electives", "Subject Code", n))),
+        "Enrolled": lambda n, r: f'=COUNTIF({ref("Student Master", f"Year 4 Electives (Sem {r["Semester"]})")},"*"&{cell("Year 4 Electives", "Elective", n)}&"*")',
+    },
     # Every Faculty Utilization column is a formula except its two inputs, Subject Code and Section.
     "Faculty Utilization": {
         **{h: (lambda h: lambda n, r: "=" + lookup("Curriculum Master", "Subject Code", h, cell("Faculty Utilization", "Subject Code", n)))(h)
            for h in ("Academic Year", "Semester", "Subject", "Subject Area", "Type", "Credits", "Faculty ID")},
         "Term": lambda n, r: (lambda ay, sem: f'=IF(MOD({sem},2)=1,"Odd (Jul-Nov "&LEFT({ay},4)&")","Even (Jan-Apr "&(LEFT({ay},4)+1)&")")')(
             cell("Faculty Utilization", "Academic Year", n), cell("Faculty Utilization", "Semester", n)),
-        # The batch in a semester started (semester - 1) / 2 years before this academic year, e.g. Semester 5 in 2026-27 -> 2024-27.
-        "Batch": lambda n, r: (lambda ay, sem: f'=(LEFT({ay},4)-INT(({sem}-1)/2))&"-"&RIGHT(LEFT({ay},4)-INT(({sem}-1)/2)+3,2)')(
+        # The batch in a semester started (semester - 1) / 2 years before this academic year, e.g. Semester 5 in 2026-27 -> 2024-28.
+        "Batch": lambda n, r: (lambda ay, sem: f'=(LEFT({ay},4)-INT(({sem}-1)/2))&"-"&RIGHT(LEFT({ay},4)-INT(({sem}-1)/2)+4,2)')(
             cell("Faculty Utilization", "Academic Year", n), cell("Faculty Utilization", "Semester", n)),
         "Status": lambda n, r: f'=IF(MOD({cell("Faculty Utilization", "Semester", n)},2)=1,"Ongoing","Upcoming")',
         "Prof Name": lambda n, r: "=" + lookup("Faculty Master", "Faculty ID", "Prof Name", cell("Faculty Utilization", "Faculty ID", n)),
@@ -550,6 +666,7 @@ bullet = ParagraphStyle("bullet", parent=body, leftIndent=11, bulletIndent=1, sp
 quote = ParagraphStyle("quote", parent=body, fontName="DejaVu-Oblique", fontSize=10, leading=15, textColor=C_NAVY)
 
 PAGE_W, PAGE_H = A4
+PAGES = 11
 MARGIN = 18 * mm
 CONTENT_W = PAGE_W - 2 * MARGIN
 
@@ -600,7 +717,7 @@ def cover(c, doc):
     c.drawString(MARGIN, PAGE_H * 0.70 - 33 * mm, "Business Administration")
     c.setFont("DejaVu", 12)
     c.setFillColor(colors.HexColor("#D5DBE8"))
-    c.drawString(MARGIN, PAGE_H * 0.70 - 45 * mm, "BBA  ·  3 years  ·  6 semesters  ·  132 credits")
+    c.drawString(MARGIN, PAGE_H * 0.70 - 45 * mm, f"BBA  ·  4 years  ·  8 semesters  ·  {TOTAL_CREDITS} credits")
     c.setFont("DejaVu", 9.5)
     lines = ["For students, parents and guardians, faculty and academic leadership.",
              "Programme overview · Pedagogy · Subjects · Assessment · Outcomes · Calendar"]
@@ -631,7 +748,7 @@ def page_chrome(c, doc):
     c.setFillColor(C_MUTED)
     c.setFont("DejaVu", 7.2)
     c.drawString(MARGIN, 9.5 * mm, "Fictitious institution · demonstration mock-up")
-    c.drawRightString(PAGE_W - MARGIN, 9.5 * mm, f"Page {doc.page} of 10")
+    c.drawRightString(PAGE_W - MARGIN, 9.5 * mm, f"Page {doc.page} of {PAGES}")
     c.restoreState()
 
 
@@ -692,7 +809,7 @@ story = [NextPageTemplate("inner"), PageBreak()]
 story += heading("Welcome", "A message from the Dean")
 story += [
     P("Dear students, parents and colleagues,"),
-    P("Welcome to the Bachelor of Business Administration at E-Logic School of Business. Over the next three years, "
+    P("Welcome to the Bachelor of Business Administration at E-Logic School of Business. Over the next four years, "
       "our students will learn how organisations create value, how markets behave, how money moves through a business, "
       "and how people are led. More importantly, they will learn by <b>doing</b>: running simulated companies, "
       "consulting for real start-ups in Bengaluru, and presenting to industry juries."),
@@ -708,7 +825,7 @@ story += [
       "internships, live projects and placements. The BBA admits 40 students a year in two sections of 20, which keeps "
       "classes small enough for discussion-led teaching."),
     Spacer(1, 4),
-    stat_strip([("40", "students per batch"), ("20", "faculty members"), ("1 : 6", "faculty-student ratio"),
+    stat_strip([("40", "students per batch"), (str(len(FACULTY)), "faculty members"), ("1 : 6", "faculty-student ratio"),
                 ("140+", "partner companies"), ("94%", "placed or in higher study, 2026")]),
     Spacer(1, 10),
     P("Vision and mission", h2),
@@ -723,12 +840,14 @@ story += [
 # Page 3: programme overview
 story += heading("Programme overview", "The BBA at a glance")
 story += [
-    P("The BBA is a full-time, three-year undergraduate degree organised in six semesters. Years 1 and 2 build a "
+    P("The BBA is a full-time, four-year undergraduate degree organised in eight semesters. Years 1 and 2 build a "
       "broad foundation across management, economics, accounting, marketing, finance, people and analytics. In Year 3 "
-      "every student chooses one <b>specialisation</b> and completes a summer internship and a capstone consulting project."),
+      "every student chooses one <b>specialisation</b> and completes a summer internship and a capstone consulting project. "
+      "Year 4 adds <b>advanced electives</b>, including ESG, compliance and CSR, on top of two core subjects each semester "
+      "and a research thesis."),
     table([["Item", "Details"],
            ["Degree", "Bachelor of Business Administration (BBA), awarded by E-Logic University"],
-           ["Duration", "3 years, 6 semesters (odd semester July-November, even semester January-April)"],
+           ["Duration", "4 years, 8 semesters (odd semester July-November, even semester January-April)"],
            ["Total credits", f"{TOTAL_CREDITS} credits (22 per semester)"],
            ["Intake", "40 students per year, two sections (A and B) of 20 each"],
            ["Eligibility", "Class XII (any stream) with at least 55% aggregate (50% for SC/ST), plus the E-LAT entrance test and interview"],
@@ -736,17 +855,19 @@ story += [
            ["Medium of instruction", "English"],
            ["Tuition fee", f"₹{ANNUAL_FEE:,} per year, payable in two instalments (by 15 July and 15 December)".replace(",", ",")],
            ["Minimum attendance", "75% in every subject to sit the end-term exam"],
-           ["Current batches (2026-27)", "2024-27 batch in Semester 5; 2025-28 batch in Semester 3; 2026-29 batch in Semester 1"]],
+           ["Current batches (2026-27)", "2023-27 batch in Semester 7; 2024-28 batch in Semester 5; 2025-29 batch in Semester 3; 2026-30 batch in Semester 1"]],
           [42 * mm, CONTENT_W - 42 * mm]),
     Spacer(1, 8),
-    P("How the three years build on each other", h2),
+    P("How the four years build on each other", h2),
     table([["Year", "Theme", "What students do"],
            ["Year 1", "Foundations", "Management, economics, accounting, mathematics, communication and digital tools; "
                                     "a sustainability project in Semester 1 and a community engagement project in Semester 2."],
            ["Year 2", "Business functions", "Marketing, finance, HR, law, operations and analytics; one open elective each "
                                           "semester; a business simulation; an 8-week summer internship after Semester 4."],
            ["Year 3", "Specialise and apply", "Strategy, ethics, international business and taxation; four subjects in the "
-                                            "chosen specialisation; the Leadership Lab and the Capstone Consulting Project."]],
+                                            "chosen specialisation; the Leadership Lab and the Capstone Consulting Project."],
+           ["Year 4", "Advance and research", "Two core subjects each semester, including a two-part research project, and four "
+                                            "advanced electives each semester, including ESG, compliance and CSR."]],
           [18 * mm, 34 * mm, CONTENT_W - 52 * mm]),
     Spacer(1, 8),
     P("Who this handbook is for", h2),
@@ -802,7 +923,8 @@ for sem in CURRICULUM:
     rows = CURRICULUM[sem]
     core = [r for r in rows if r[3] == C]
     choice = {3: "1 open elective (2 credits) from 3", 4: "1 open elective (2 credits) from 3",
-              5: "2 subjects (8 credits) of the chosen specialisation", 6: "2 subjects (8 credits) of the chosen specialisation"}.get(sem, "-")
+              5: "2 subjects (8 credits) of the chosen specialisation", 6: "2 subjects (8 credits) of the chosen specialisation",
+              **{s: f"4 advanced electives (16 credits) from {YEAR4_OFFERED[s]}" for s in (7, 8)}}.get(sem, "-")
     t = teaching(sem_credits(sem))
     struct.append([f"Semester {sem}", TERM[sem].split(" (")[0], str(len(core)), choice, str(sem_credits(sem)),
                    f"{t['Number of Sessions']} · {t['Hours Taught']} h"])
@@ -815,14 +937,14 @@ for sem, rows in CURRICULUM.items():
     for r in rows:
         if r[3] == C:
             credits_by_assess[r[4]] += r[2]
-credits_by_assess["Elective"] = 2 + 2 + 8 + 8
+credits_by_assess["Elective"] = 2 + 2 + 8 + 8 + 16 + 16
 
 story += heading("Programme structure", "Credit framework")
 story += [
     P(f"Students earn <b>22 credits every semester</b> and <b>{TOTAL_CREDITS} credits</b> in total. Core subjects are "
-      "compulsory for everyone. Electives come in two kinds: <b>open electives</b> in Semesters 3 and 4 (one chosen from "
-      "three each semester), and <b>specialisation electives</b> in Semesters 5 and 6 (all four subjects of the chosen "
-      "track)."),
+      "compulsory for everyone. Electives come in three kinds: <b>open electives</b> in Semesters 3 and 4 (one chosen from "
+      "three each semester), <b>specialisation electives</b> in Semesters 5 and 6 (all four subjects of the chosen "
+      "track), and <b>advanced electives</b> in Semesters 7 and 8 (four chosen each semester)."),
     table(struct, [22 * mm, 16 * mm, 22 * mm, CONTENT_W - 22 * mm - 16 * mm - 22 * mm - 22 * mm - 30 * mm, 22 * mm, 30 * mm]),
     Spacer(1, 8),
     P("Where the credits come from", h2),
@@ -830,7 +952,7 @@ story += [
            ["Core subjects assessed by exam", str(credits_by_assess["Exam"]), f"{credits_by_assess['Exam'] / TOTAL_CREDITS:.0%}"],
            ["Core workshops and studios", str(credits_by_assess["Workshop"]), f"{credits_by_assess['Workshop'] / TOTAL_CREDITS:.0%}"],
            ["Core projects (including internship and capstone)", str(credits_by_assess["Project"]), f"{credits_by_assess['Project'] / TOTAL_CREDITS:.0%}"],
-           ["Electives (open and specialisation)", str(credits_by_assess["Elective"]), f"{credits_by_assess['Elective'] / TOTAL_CREDITS:.0%}"],
+           ["Electives (open, specialisation and advanced)", str(credits_by_assess["Elective"]), f"{credits_by_assess['Elective'] / TOTAL_CREDITS:.0%}"],
            ["<b>Total</b>", f"<b>{TOTAL_CREDITS}</b>", "<b>100%</b>"]],
           [CONTENT_W - 50 * mm, 25 * mm, 25 * mm]),
     Spacer(1, 8),
@@ -885,7 +1007,26 @@ story += [
     PageBreak(),
 ]
 
-# Page 8: assessment and evaluation
+# Page 8: Year 4 subjects and the master table of electives
+core4 = [["Code", "Core subject", "Semester", "Credits", "Assessed", "Faculty"]]
+core4 += [[r[0], r[1], str(sem), str(r[2]), r[4], FAC[r[6]][1]] for sem in (7, 8) for r in CURRICULUM[sem] if r[3] == C]
+master = [["Sem", "Code", "Elective", "Track", "Assessed", "Advanced topics", "Prerequisite"]]
+master += [[str(r["Semester"]), r["Subject Code"], r["Elective"], r["Track"].replace("Human Resources", "HR").replace("Business Analytics", "Analytics"),
+            r["Assessment"], r["Advanced Topics"], r["Prerequisite"]] for r in year4_rows]
+story += heading("Subjects", "Year 4: core subjects and advanced electives")
+story += [
+    P(f"Each Year 4 semester has <b>2 core subjects</b> (3 credits each) and <b>{YEAR4_PICKS} electives</b> (4 credits each), "
+      f"22 credits in all. {YEAR4_OFFERED[7]} electives are offered in Semester 7 and {YEAR4_OFFERED[8]} in Semester 8: students take "
+      "the two from their own specialisation and two more from the other tracks or the Sustainability &amp; Governance "
+      f"electives on ESG, compliance and CSR, which are open to every track. Each elective has {YEAR4_SEATS} seats.", small),
+    P("Core subjects", h3),
+    table(core4, [15.5 * mm, 68 * mm, 18 * mm, 15 * mm, 18 * mm, CONTENT_W - 134.5 * mm], font=tight, head=tighth, pad=1.8),
+    P("Master table of electives", h3),
+    table(master, [10 * mm, 14.5 * mm, 38 * mm, 17 * mm, 18 * mm, CONTENT_W - 118.5 * mm, 21 * mm], font=tight, head=tighth, pad=1.8),
+    PageBreak(),
+]
+
+# Page 9: assessment and evaluation
 story += heading("Assessment", "How students are evaluated")
 story += [
     P("Each subject is assessed in one of three ways, shown as <b>Assessment</b> in the curriculum. The weighting is "
@@ -921,7 +1062,7 @@ story += [
     PageBreak(),
 ]
 
-# Page 9: outcomes, internships, placements
+# Page 10: outcomes, internships, placements
 story += heading("Outcomes", "What our graduates can do")
 story += [
     P("The BBA is designed backwards from seven <b>programme outcomes (POs)</b>. Every subject maps to at least two of "
@@ -945,31 +1086,31 @@ story += [
     P("Internships and placements", h2),
     P("All students complete an <b>8-week summer internship</b> between Year 2 and Year 3 (17 May to 11 July 2027 for the "
       "current Year 2). The Internship & Placement Cell, led by Prof. Ankit Shah, runs a placement-readiness programme "
-      "from Semester 5."),
+      "from Semester 7."),
     stat_strip([("94%", "placed or in higher study (2026)"), ("₹6.8 LPA", "average salary offered"),
                 ("₹14 LPA", "highest salary offered"), ("62", "recruiters on campus")]),
     PageBreak(),
 ]
 
-# Page 10: calendar, support, contacts
+# Page 11: calendar, support, contacts
 story += heading("Calendar and support", "Academic calendar 2026-27 and whom to contact")
 story += [
     table([["Date", "Event"],
-           ["20 July 2026", "Orientation for the 2026-29 batch (students and parents)"],
-           ["27 July 2026", "Odd semester classes begin (Semesters 1, 3 and 5)"],
+           ["20 July 2026", "Orientation for the 2026-30 batch (students and parents)"],
+           ["27 July 2026", "Odd semester classes begin (Semesters 1, 3, 5 and 7)"],
            ["14-19 September 2026", "Mid-term exams, odd semester"],
            ["10 October 2026", "Parent-Teacher Meeting (PTM) 1, in person and online"],
            ["6-11 November 2026", "Deepavali break"],
            ["14 November 2026", "Last teaching day, odd semester"],
            ["23 November - 5 December 2026", "End-term exams, odd semester"],
            ["7 December 2026 - 3 January 2027", "Winter break"],
-           ["4 January 2027", "Even semester classes begin (Semesters 2, 4 and 6)"],
+           ["4 January 2027", "Even semester classes begin (Semesters 2, 4, 6 and 8)"],
            ["22-24 January 2027", "E-Fest, the annual management and cultural festival"],
            ["15-20 February 2027", "Mid-term exams, even semester"],
            ["13 March 2027", "Parent-Teacher Meeting (PTM) 2"],
            ["26 April - 8 May 2027", "End-term exams, even semester"],
            ["17 May - 11 July 2027", "Summer internship (students finishing Year 2)"],
-           ["June 2027", "Supplementary exams; convocation for the 2024-27 batch"]],
+           ["June 2027", "Supplementary exams; convocation for the 2023-27 batch"]],
           [58 * mm, CONTENT_W - 58 * mm]),
     Spacer(1, 6),
     P("For parents and guardians", h2),
@@ -981,7 +1122,7 @@ story += [
     table([["Role", "Name", "E-mail"],
            ["Dean, School of Business", "Prof. (Dr.) Meera Raghavan", email_of("Meera Raghavan")],
            ["Programme Director, BBA", "Dr. Arvind Kulkarni", email_of("Arvind Kulkarni")],
-           ["Year 1 / Year 2 / Year 3 Coordinators", "Dr. Lakshmi Narayanan / Dr. Neha Agarwal / Dr. Priya Hegde", "bba.coordinators@elogic.example.edu"],
+           ["Year 1 / 2 / 3 / 4 Coordinators", "Dr. Lakshmi Narayanan / Dr. Neha Agarwal / Dr. Priya Hegde / Dr. Mohan Krishnamurthy", "bba.coordinators@elogic.example.edu"],
            ["Student Welfare & Parent Liaison", "Dr. Farah Siddiqui", email_of("Farah Siddiqui")],
            ["Controller of Examinations", "Dr. Sanjay Deshmukh", email_of("Sanjay Deshmukh")],
            ["Internship & Placement Cell", "Prof. Ankit Shah", email_of("Ankit Shah")]],
@@ -1012,16 +1153,18 @@ site = {
     "assumptions": {"sessionsPerCredit": SESSIONS_PER_CREDIT, "minutesPerSession": MINUTES_PER_SESSION,
                     "fchPerCredit": FCH_PER_CREDIT, "facultyGoal": FACULTY_GOAL},
     "facultyUtilization": utilization_rows,
+    "year4Electives": year4_rows,
     "students": student_rows,
     "files": [{"name": HANDBOOK.name, "path": f"docs/{HANDBOOK.name}", "title": "BBA Student Handbook 2026-27",
-               "description": "10 pages: overview, pedagogy, subjects, assessment, outcomes, calendar, contacts."},
+               "description": f"{PAGES} pages: overview, pedagogy, subjects, assessment, outcomes, calendar, contacts."},
               {"name": MASTERS.name, "path": f"docs/{MASTERS.name}", "title": "BBA master data 2026-27",
                "description": f"Curriculum ({len(curriculum_rows)} subjects), students ({len(student_rows)}), "
-                              f"faculty ({len(faculty_rows)}), faculty utilization ({len(utilization_rows)} sections)."}],
+                              f"faculty ({len(faculty_rows)}), faculty utilization ({len(utilization_rows)} sections), "
+                              f"Year 4 electives ({len(year4_rows)})."}],
 }
 (ROOT / "site-data.json").write_text(json.dumps(site, indent=1, ensure_ascii=False))
 
-chars = sum(len("; ".join(f"{k}: {v}" for k, v in r.items())) for r in curriculum_rows + student_rows + faculty_rows + utilization_rows)
+chars = sum(len("; ".join(f"{k}: {v}" for k, v in r.items())) for r in curriculum_rows + student_rows + faculty_rows + utilization_rows + year4_rows)
 print(f"curriculum {len(curriculum_rows)} rows, students {len(student_rows)}, faculty {len(faculty_rows)}, "
       f"utilization {len(utilization_rows)} sections (not offered: {', '.join(not_offered) or 'none'}), "
       f"total credits {TOTAL_CREDITS}, spreadsheet text ≈ {chars:,} chars")

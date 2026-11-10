@@ -40,15 +40,15 @@ const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
 const countBy = (rows, key) => rows.reduce((m, r) => m.set(r[key], (m.get(r[key]) || 0) + 1), new Map());
 
 const DOCS = ['E-Logic_BBA_Student_Handbook_2026-27.pdf', 'E-Logic_BBA_Master_Data_2026-27.xlsx'];
-// The two documents are about 170k characters; sending them whole (prompt-cached) beats retrieval for
+// The two documents are about 270k characters; sending them whole (prompt-cached) beats retrieval for
 // "list every…" and "how many…" questions. Past this size the bot falls back to best-matching passages.
-const FULL_CONTEXT_LIMIT = 260000;
+const FULL_CONTEXT_LIMIT = 340000;
 
 let data = null;
 
 // ================================================================== routing
 
-const VIEWS = ['ask', 'programme', 'curriculum', 'faculty', 'students', 'handbook', 'planner', 'ask'];
+const VIEWS = ['ask', 'programme', 'curriculum', 'faculty', 'students', 'handbook', 'planner', 'scheduling'];
 let curSem = 0; // 0 = all semesters
 
 function route() {
@@ -59,7 +59,7 @@ function route() {
   $('primary-nav').classList.remove('is-open');
   $('nav-toggle').setAttribute('aria-expanded', 'false');
   $('fab').hidden = name === 'ask';
-  if (name === 'curriculum' && sub && /^[1-6]$/.test(sub)) { curSem = Number(sub); renderCurriculum(); }
+  if (name === 'curriculum' && sub && /^[1-8]$/.test(sub)) { curSem = Number(sub); renderCurriculum(); }
   if (name === 'planner') showPlanTab(sub);
   const target = sub && name === 'programme' ? document.getElementById(`programme-${sub}`) : null;
   if (target) target.scrollIntoView({ behavior: 'smooth' });
@@ -76,9 +76,10 @@ function renderStructure() {
     if (c.Type === 'Core') { s.core += 1; s.coreCredits += c.Credits; } else s.electives += 1;
     bySem.set(c.Semester, s);
   }
-  const elective = { 3: 'Choose 1 open elective (2 credits) of 3', 4: 'Choose 1 open elective (2 credits) of 3', 5: '2 subjects (8 credits) of your specialisation', 6: '2 subjects (8 credits) of your specialisation' };
+  const elective = { 3: 'Choose 1 open elective (2 credits) of 3', 4: 'Choose 1 open elective (2 credits) of 3', 5: '2 subjects (8 credits) of your specialisation', 6: '2 subjects (8 credits) of your specialisation',
+    7: 'Choose 4 advanced electives (16 credits)', 8: 'Choose 4 advanced electives (16 credits)' };
   const rows = [...bySem.entries()].map(([sem, s]) => {
-    const earned = s.coreCredits + (sem >= 5 ? 8 : sem >= 3 ? 2 : 0);
+    const earned = s.coreCredits + (sem >= 7 ? 16 : sem >= 5 ? 8 : sem >= 3 ? 2 : 0);
     return el('tr', {}, el('td', { text: `Semester ${sem}` }), el('td', { text: `Year ${Math.ceil(sem / 2)}` }),
       el('td', { class: 'num', text: String(s.core) }), el('td', { class: 'num', text: String(s.coreCredits) }),
       el('td', { text: elective[sem] || '-' }), el('td', { class: 'num', text: String(earned) }));
@@ -98,7 +99,7 @@ function renderCurriculum() {
   if (!data) return;
   const tabs = $('sem-tabs');
   if (!tabs.children.length) {
-    ['All', 1, 2, 3, 4, 5, 6].forEach((s, i) => tabs.append(el('button', { role: 'tab', type: 'button', text: i ? `Sem ${s}` : s,
+    ['All', 1, 2, 3, 4, 5, 6, 7, 8].forEach((s, i) => tabs.append(el('button', { role: 'tab', type: 'button', text: i ? `Sem ${s}` : s,
       onclick: () => { curSem = i; renderCurriculum(); } })));
     // Areas in the order they first appear in the curriculum.
     [...new Set(data.curriculum.map((c) => c['Subject Area']))].forEach((a) => $('cur-area').append(el('option', { text: a })));
@@ -135,6 +136,26 @@ function renderCurriculum() {
   $('cur-table').replaceChildren(
     el('thead', {}, el('tr', {}, ['Code', 'Subject', 'Subject Area', 'Academic Year', 'Credits', 'Sessions', 'Hours taught', 'Faculty credit hours', 'Sections', 'Type', 'Assessment', 'Faculty'].map((h) => el('th', { text: h })))),
     el('tbody', {}, body.length ? body : el('tr', {}, el('td', { colspan: 12, text: 'No subjects match these filters.' }))));
+}
+
+// What the odd semester asks of a timetable, from Faculty Utilization. The tab itself is still to come.
+function renderScheduling() {
+  const term = data.facultyUtilization.filter((u) => u.Status === 'Ongoing');
+  const sum = (key) => term.reduce((n, u) => n + u[key], 0);
+  $('sch-note').textContent = `${term[0].Term}: Semesters ${[...new Set(term.map((u) => u.Semester))].join(', ')}.`;
+  $('sch-kpis').replaceChildren(kpi(term.length, 'sections to timetable'), kpi(sum('Number of Sessions').toLocaleString('en-IN'), 'class sessions this term'),
+    kpi(new Set(term.map((u) => u['Faculty ID'])).size, 'faculty teaching'), kpi(new Set(term.map((u) => u.Batch)).size, 'batches'),
+    kpi(sum('Students').toLocaleString('en-IN'), 'student seats across sections'));
+}
+
+function renderYear4() {
+  const heads = ['Sem', 'Code', 'Elective', 'Track', 'Credits', 'Assessment', 'Faculty', 'Advanced topics', 'Prerequisite', 'Seats', 'Enrolled'];
+  $('y4-table').replaceChildren(
+    el('thead', {}, el('tr', {}, heads.map((h) => el('th', { text: h })))),
+    el('tbody', {}, data.year4Electives.map((r) => el('tr', {}, el('td', { class: 'num', text: String(r.Semester) }), el('td', { text: r['Subject Code'] }),
+      el('td', {}, el('strong', { text: r.Elective })), el('td', { text: r.Track }), el('td', { class: 'num', text: String(r.Credits) }), el('td', {}, tag(r.Assessment)),
+      el('td', { text: r['Prof Name'] }), el('td', { text: r['Advanced Topics'] }), el('td', { text: r.Prerequisite }),
+      el('td', { class: 'num', text: String(r.Seats) }), el('td', { class: 'num', text: String(r.Enrolled) })))));
 }
 
 const kpi = (value, label) => el('div', { class: 'kpi' }, el('strong', { text: String(value) }), el('span', { text: label }));
@@ -209,7 +230,7 @@ function renderStudents() {
       kpi(all.filter((s) => s['Hostel Resident'] === 'Yes').length, 'hostel residents'), kpi(avg.toFixed(2), 'average CGPA (Years 2-3)'),
       kpi(low.length, 'below 75% attendance'), kpi(all.filter((s) => s['Fee Status'] !== 'Paid').length, 'with fees pending'));
     hbars($('stu-states'), countBy(all, 'Home State'));
-    hbars($('stu-tracks'), countBy(all.filter((s) => s['Current Year'] === 'Year 3'), 'Specialisation'));
+    hbars($('stu-tracks'), countBy(all.filter((s) => ['Year 3', 'Year 4'].includes(s['Current Year'])), 'Specialisation'));
     $('stu-risk').replaceChildren(el('div', { class: 'risk' }, low.map((s) => el('span', { class: 'tag tag-low', title: `${s.Batch}, mentor ${s['Faculty Mentor']}`,
       text: `${s['Student Name']} · ${s['Attendance % (current sem)']}%` }))));
   }
@@ -240,18 +261,26 @@ const PLAN_OUTPUTS = [...PLAN_DOCS, ['marks', 'Marks Sheet']];
 const PLAN_BLANKS = { outline: 'E-Logic_Course_Outline_Template.docx', aol: 'E-Logic_AoL_Plan_Template.docx', report: 'E-Logic_AoL_Report_Template.docx' };
 // A CLO's band comes from the share of its marks a student earned. These match the marks sheet's own defaults.
 const DEFAULT_CUTOFFS = { exceed: 0.75, meet: 0.5 };
+const DEFAULT_TARGET = 0.7;
+const HIGHER_ORDER = 4; // Bloom's level from which an item asks students to analyse, evaluate or create
 const JSZIP = 'https://cdn.jsdelivr.net/npm/jszip@3.10.2/+esm';
 const PIZZIP = 'https://cdn.jsdelivr.net/npm/pizzip@3.3.0/+esm';
 const DOCXTEMPLATER = 'https://cdn.jsdelivr.net/npm/docxtemplater@3.71.0/+esm';
 const EXCELJS = 'https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js';
 const MAMMOTH = 'https://cdn.jsdelivr.net/npm/mammoth@1.13.0/mammoth.browser.min.js';
+const JSPDF = 'https://cdn.jsdelivr.net/npm/jspdf@2.5.2/dist/jspdf.umd.min.js';
+const AUTOTABLE = 'https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.4/dist/jspdf.plugin.autotable.min.js';
 const DOCX_TYPE = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
 const TEMPLATE_LIMIT = 10 * 1024 * 1024;
 let planIndex = {};
 let planFiles = [];
 let planCustom = {}; // kind -> { name, blob, savedAt, warnings }: uploaded templates in this browser
-let planMarks = {}; // subject code -> { name, blob, savedAt, warnings, results, students }: uploaded marks in this browser
+let planMarks = {}; // subject code -> { name, blob, savedAt, warnings, clos, cutoffs, results, review, students }: uploaded marks in this browser
+let planOutlines = {}; // subject code -> { name, blob, version, status, ... }: outlines going through review in this browser
 let planMarksCode = '';
+let planResultsCode = '';
+let planOutlineCode = '';
+let planCoaching = null;
 const planFields = new Map();
 
 const loadScript = (src, global) => new Promise((resolve, reject) => {
@@ -293,7 +322,9 @@ async function loadSavedMarks() {
   for (const c of planSubjects()) {
     try {
       const saved = await templateStore('readonly', (s) => s.get(`marks:${c['Subject Code']}`));
-      if (saved) planMarks[c['Subject Code']] = saved;
+      if (!saved) continue;
+      // Marks saved before the Results tab kept only class totals, so read those files again.
+      planMarks[c['Subject Code']] = saved.clos ? saved : { ...saved, ...(await readMarks(c['Subject Code'], new File([saved.blob], saved.name))) };
     } catch (e) { /* storage blocked: the reports keep their dummy results */ }
   }
 }
@@ -339,25 +370,29 @@ function labelRow(sheet, label) {
 }
 
 // The columns tagged with a CLO, up to the merged block of totals that follows them.
-function markedColumns(sheet, outcomeRow, marksRow, cloCount) {
+function markedColumns(sheet, rows, cloCount) {
   const columns = [];
   for (let col = 5; col <= sheet.columnCount; col++) {
-    const cell = sheet.getCell(outcomeRow, col);
+    const cell = sheet.getCell(rows.outcome, col);
     if (cell.isMerged) break;
     const tag = cellText(cell);
     if (!tag) continue;
     const clo = Number((tag.match(/^(?:CL?O)?\s*(\d+)$/i) || [])[1]);
     if (!clo || clo > cloCount) return { error: `Cell ${cell.address} says “${tag}”. This subject has CO1 to CO${cloCount}.` };
-    const most = Number(cellText(sheet.getCell(marksRow, col)));
+    const most = Number(cellText(sheet.getCell(rows.marks, col)));
     if (!(most > 0)) return { error: `Cell ${cell.address} has a Course Outcome, but its column has no Question Marks.` };
-    columns.push({ col, clo, most });
+    columns.push({ col, clo, most, label: (rows.question && cellText(sheet.getCell(rows.question, col))) || `Question ${col - 4}`,
+      bloom: rows.bloom ? Number(cellText(sheet.getCell(rows.bloom, col))) || 0 : 0 });
   }
   return columns.length ? { columns } : { error: 'No column has a Course Outcome, so there is nothing to count.' };
 }
 
-/** Counts the students in each band for each CLO. Absent or empty marks count as zero unless a student has none for that CLO. */
-function bandResults(sheet, start, columns, cloCount, cutoffs) {
-  const bands = Array.from({ length: cloCount }, () => ({ exceed: 0, meet: 0, below: 0 }));
+/** Each student's marks for each CLO. Absent or empty marks count as zero unless a student has none for that CLO. */
+function readStudents(sheet, start, columns, cloCount) {
+  const clos = Array.from({ length: cloCount }, (_, i) => {
+    const mine = columns.filter((c) => c.clo === i + 1);
+    return { most: mine.reduce((n, c) => n + c.most, 0), scores: [], items: mine.map(({ col, label, bloom }) => ({ col, label, bloom, sum: 0, count: 0 })) };
+  });
   const seen = new Set();
   for (let r = start; r <= sheet.rowCount; r++) {
     const roll = cellText(sheet.getCell(r, 4));
@@ -368,22 +403,31 @@ function bandResults(sheet, start, columns, cloCount, cutoffs) {
     for (const { col, clo, most } of columns) {
       const cell = sheet.getCell(r, col);
       const text = cellText(cell);
-      const entry = totals.get(clo) || { got: 0, most: 0, marked: false };
-      entry.most += most;
+      const entry = totals.get(clo) || { got: 0, marked: false };
       if (text && !/^ab$/i.test(text)) {
         const mark = Number(text);
         if (Number.isNaN(mark) || mark < 0 || mark > most) return { error: `Cell ${cell.address} has “${text}”. Enter a mark from 0 to ${most}, or AB.` };
         entry.got += mark;
         entry.marked = true;
+        const item = clos[clo - 1].items.find((i) => i.col === col);
+        item.sum += mark / most * 100;
+        item.count += 1;
       }
       totals.set(clo, entry);
     }
-    for (const [clo, { got, most, marked }] of totals) {
-      if (!marked) continue;
-      bands[clo - 1][got >= cutoffs.exceed * most ? 'exceed' : got >= cutoffs.meet * most ? 'meet' : 'below'] += 1;
-    }
+    const section = cellText(sheet.getCell(r, 2));
+    for (const [clo, { got, marked }] of totals) if (marked) clos[clo - 1].scores.push({ got, section });
   }
-  return { bands, students: seen.size };
+  for (const clo of clos) clo.items = clo.items.map(({ label, bloom, sum, count }) => ({ label, bloom, average: count ? sum / count : null }));
+  return { clos, students: seen.size };
+}
+
+const bandOf = (got, most, { exceed, meet }) => (got >= exceed * most ? 'exceed' : got >= meet * most ? 'meet' : 'below');
+
+function countBands(clo, cutoffs) {
+  const bands = { exceed: 0, meet: 0, below: 0 };
+  for (const { got } of clo.scores) bands[bandOf(got, clo.most, cutoffs)] += 1;
+  return bands;
 }
 
 const bandFields = ({ exceed, meet, below }) => {
@@ -401,16 +445,57 @@ function readCutoffs(book) {
     for (let r = 1; r <= sheet.rowCount; r++) if (cellText(sheet.getCell(r, 1)) === label) return Number(cellText(sheet.getCell(r, 2)));
     return null;
   };
+  const target = value('Target: students meeting or exceeding') ?? DEFAULT_TARGET;
   const exceed = value('Exceed Expectation: at least') ?? DEFAULT_CUTOFFS.exceed;
   const meet = value('Meet Expectation: at least') ?? DEFAULT_CUTOFFS.meet;
   if (!(meet > 0 && meet < exceed && exceed <= 1)) return { error: 'Check the cut-offs on the AoL Summary tab: Exceed must be above Meet, and both between 0% and 100%.' };
-  return { cutoffs: { exceed, meet } };
+  return { cutoffs: { exceed, meet }, target };
+}
+
+const loadCoaching = async () => {
+  planCoaching ||= await (await fetch(`${PLAN_DIR}coaching.json`)).json();
+  return planCoaching;
+};
+
+function cloStatus({ exceed, meet, below }, target) {
+  const met = (exceed + meet) / (exceed + meet + below) * 100;
+  return met < target * 100 ? 'below' : met < target * 100 + planCoaching.near_margin ? 'near' : 'above';
+}
+
+const weakestItem = (clo) => clo.items.filter((i) => i.average != null).reduce((low, i) => (!low || i.average < low.average ? i : low), null);
+
+// Drafts a CLO's Analysis of Result and Improvement Plan, the same way build_marks.py does for the samples.
+function draftReview(clo, cutoffs, target) {
+  if (!clo.scores.length) return { analysis: '', improvement: '' };
+  const bands = countBands(clo, cutoffs);
+  const assessed = clo.scores.length;
+  const item = weakestItem(clo);
+  const status = cloStatus(bands, target);
+  const values = { met: ((bands.exceed + bands.meet) / assessed * 100).toFixed(1), below: (bands.below / assessed * 100).toFixed(1), target: String(Math.round(target * 1000) / 10),
+    average: (clo.scores.reduce((sum, { got }) => sum + got / clo.most * 100, 0) / assessed).toFixed(1), item: item.label, item_average: item.average.toFixed(1) };
+  const fill = (text) => text.replace(/\{(\w+)\}/g, (_, key) => values[key]);
+  const { lead, several, single } = planCoaching.analysis;
+  const several_items = clo.items.filter((i) => i.average != null).length > 1;
+  return { analysis: fill(lead + (several_items ? several : single)),
+    improvement: fill(planCoaching.suggestions[status][item.bloom >= HIGHER_ORDER ? 'higher' : 'lower'][0]) };
+}
+
+// Sets the cut-offs for a subject's marks and works out what depends on them. Text faculty have written stays as it is.
+function applyCutoffs(marks, cutoffs) {
+  marks.cutoffs = cutoffs;
+  marks.results = marks.clos.map((clo) => bandFields(countBands(clo, cutoffs)));
+  marks.review = marks.clos.map((clo, i) => {
+    const old = (marks.review || [])[i] || {};
+    const draft = draftReview(clo, cutoffs, marks.target);
+    return { ...old, analysis: old.analysisEdited ? old.analysis : draft.analysis, improvement: old.improvementEdited ? old.improvement : draft.improvement };
+  });
 }
 
 async function readMarks(code, file) {
   if (!file.name.toLowerCase().endsWith('.xlsx')) return { error: 'Please upload a .xlsx file.' };
   if (file.size > TEMPLATE_LIMIT) return { error: 'That file is over 10 MB.' };
   const ExcelJS = await loadExcel();
+  await loadCoaching();
   const book = new ExcelJS.Workbook();
   try {
     await book.xlsx.load(await file.arrayBuffer());
@@ -424,16 +509,19 @@ async function readMarks(code, file) {
   const named = (cellText(sheet.getCell('C2')).match(/[A-Z]{3}\d{3}/) || [])[0];
   if (named && named !== code) return { error: `This marks sheet is for ${named}, but ${code} is selected.` };
   const { clos } = await subjectFields(code);
-  const { cutoffs, error: cutoffError } = readCutoffs(book);
+  const { cutoffs, target, error: cutoffError } = readCutoffs(book);
   if (cutoffError) return { error: cutoffError };
-  const { columns, error } = markedColumns(sheet, outcomeRow, marksRow, clos.length);
+  const bloomRow = labelRow(sheet, 'Bloom\'s Level');
+  const { columns, error } = markedColumns(sheet, { outcome: outcomeRow, marks: marksRow, question: labelRow(sheet, 'Question'), bloom: bloomRow }, clos.length);
   if (error) return { error };
-  const counted = bandResults(sheet, (labelRow(sheet, 'Bloom\'s Level') || outcomeRow) + 1, columns, clos.length, cutoffs);
+  const counted = readStudents(sheet, (bloomRow || outcomeRow) + 1, columns, clos.length);
   if (counted.error) return counted;
-  if (counted.bands.every((b) => !(b.exceed + b.meet + b.below))) return { error: 'No marks found. Enter marks on the Marks Sheet, then upload it again.' };
-  const missing = clos.filter((c, i) => !(counted.bands[i].exceed + counted.bands[i].meet + counted.bands[i].below)).map((c) => `CLO${c.n}`);
-  return { results: counted.bands.map(bandFields), students: counted.students, cutoffs,
+  if (counted.clos.every((c) => !c.scores.length)) return { error: 'No marks found. Enter marks on the Marks Sheet, then upload it again.' };
+  const missing = clos.filter((c, i) => !counted.clos[i].scores.length).map((c) => `CLO${c.n}`);
+  const marks = { clos: counted.clos, students: counted.students, target, sheetCutoffs: cutoffs,
     warnings: missing.length ? [`No marks for ${missing.join(', ')}, so the report shows a dash for ${missing.length === 1 ? 'it' : 'them'}.`] : [] };
+  applyCutoffs(marks, cutoffs);
+  return marks;
 }
 
 // ------------------------------------------------------------------ filling a template for one subject
@@ -459,11 +547,12 @@ const cutoffRule = ({ exceed, meet }) => `Exceed Expectation is ${percent(exceed
   + `Meet Expectation is ${percent(meet)} up to ${percent(exceed)}, and Does not meet Expectation is below ${percent(meet)}.`;
 
 const withMarks = (fields, marks) => ({ ...fields, results_note: `From the marks in ${marks.name}.`, results_rule: cutoffRule(marks.cutoffs || DEFAULT_CUTOFFS),
-  clos: fields.clos.map((c, i) => ({ ...c, ...marks.results[i] })) });
+  clos: fields.clos.map((c, i) => ({ ...c, ...marks.results[i], ...marks.review[i] })) });
 
 // One document for a subject: built live if it has an uploaded template or marks, otherwise the reviewed file.
 async function planBlob({ code, kind, name }) {
   if (kind === 'marks' && planMarks[code]) return planMarks[code].blob;
+  if (kind === 'outline' && planOutlines[code]) return planOutlines[code].blob;
   const marks = kind === 'report' && planMarks[code];
   if (planCustom[kind] || marks) {
     const fields = await subjectFields(code);
@@ -508,10 +597,8 @@ function pickedSubjects() {
 }
 
 function openMarksTile(code) {
-  planMarksCode = code;
-  renderTemplates();
-  location.hash = 'planner/templates';
-  setTimeout(() => $('tpl-marks-subject').scrollIntoView({ behavior: 'smooth', block: 'center' }), 100);
+  planResultsCode = code;
+  location.hash = 'planner/results';
 }
 
 function updateMarksPrompt() {
@@ -520,7 +607,7 @@ function updateMarksPrompt() {
   prompt.hidden = !$('plan-marks').checked || !missing.length;
   if (prompt.hidden) return;
   const who = missing.length === 1 ? missing[0] : plural(missing.length, 'subject');
-  prompt.replaceChildren(el('p', { text: `Please upload the marks sheet for ${who} on the Templates tab. Until then, this download is a sample with dummy marks.` }),
+  prompt.replaceChildren(el('p', { text: `Please upload the marks sheet for ${who} on the Marks & results tab. Until then, this download is a sample with dummy marks.` }),
     el('button', { class: 'btn btn-outline btn-sm', type: 'button', text: 'Upload marks sheet', onclick: () => openMarksTile(missing[0]) }));
 }
 
@@ -549,6 +636,9 @@ function generatePlan() {
       const file = { code: c['Subject Code'], kind, name };
       planFiles.push(file);
       const marks = (kind === 'report' || kind === 'marks') && planMarks[c['Subject Code']];
+      const outline = kind === 'outline' && planOutlines[c['Subject Code']];
+      if (outline) return el('td', {}, el('button', { class: 'btn-link', type: 'button', onclick: () => downloadPlanFile(file) }, icon('download'), ' Download'),
+        el('small', { class: 'plan-custom', text: `Version ${outline.version}, ${OUTLINE_STATUS[outline.status].toLowerCase()}` }));
       if (!planCustom[kind] && !marks) return el('td', {}, el('a', { href: PLAN_DIR + name, download: true }, icon('download'), ' Download'),
         kind === 'marks' ? el('small', { class: 'plan-sample', text: 'Sample, dummy marks' }) : null);
       return el('td', {}, el('button', { class: 'btn-link', type: 'button', onclick: () => downloadPlanFile(file) }, icon('download'), ' Download'),
@@ -578,12 +668,17 @@ async function downloadPlanZip() {
 
 // ------------------------------------------------------------------ templates tab
 
+const PLAN_TABS = ['generate', 'outline', 'results', 'templates'];
+
 function showPlanTab(tab) {
-  const templates = tab === 'templates';
-  $('plan-panel-generate').hidden = templates;
-  $('plan-panel-templates').hidden = !templates;
-  $('plan-tab-generate').setAttribute('aria-selected', String(!templates));
-  $('plan-tab-templates').setAttribute('aria-selected', String(templates));
+  const shown = PLAN_TABS.includes(tab) ? tab : 'generate';
+  for (const name of PLAN_TABS) {
+    $(`plan-panel-${name}`).hidden = name !== shown;
+    $(`plan-tab-${name}`).setAttribute('aria-selected', String(name === shown));
+  }
+  if (!Object.keys(planIndex).length) return; // the planner is still loading, and shows this tab when it's ready
+  if (shown === 'outline') renderOutline();
+  if (shown === 'results') renderResults();
 }
 
 async function activeTemplate(kind) {
@@ -677,8 +772,11 @@ async function uploadMarks(code, file, message) {
     const saved = { name: file.name, blob: new Blob([file], { type: file.type }), savedAt: new Date().toISOString(), ...counted };
     await templateStore('readwrite', (s) => s.put(saved, `marks:${code}`));
     planMarks[code] = saved;
+    planResultsCode = code;
     clearPlanResults();
     renderTemplates();
+    if (location.hash === '#planner/results') renderResults();
+    else location.hash = 'planner/results';
   } catch (e) {
     message.textContent = 'These marks couldn’t be read or saved in this browser.';
     message.className = 'tpl-msg is-error';
@@ -717,9 +815,509 @@ function marksCard() {
       el('a', { class: 'btn btn-outline btn-sm', href: blankMarks(code), download: true, text: 'Download blank' }),
       el('a', { class: 'btn btn-outline btn-sm', href: PLAN_DIR + planIndex[code].marks, download: true, text: 'Download sample' }),
       saved ? el('button', { class: 'btn btn-outline btn-sm', type: 'button', text: 'Download yours', onclick: () => saveBlob(saved.blob, saved.name) }) : null,
+      saved ? el('button', { class: 'btn btn-outline btn-sm', type: 'button', text: 'View results', onclick: () => { planResultsCode = code; location.hash = 'planner/results'; } }) : null,
       el('button', { class: 'btn btn-primary btn-sm', type: 'button', text: 'Upload marks', onclick: () => input.click() }),
       saved ? el('button', { class: 'btn-link', type: 'button', text: 'Remove marks', onclick: () => removeMarks(code) }) : null),
     input);
+}
+
+// ------------------------------------------------------------------ results: distribution, cut-offs, reflection
+
+const STATUS_LABEL = { below: 'Below target', near: 'Near target', above: 'Above target' };
+const BAND_LABEL = { exceed: 'Exceed', meet: 'Meet', below: 'Does not meet' };
+const BIN_WIDTH = 5; // percentage points of a CLO's marks in each bar
+
+const saveMarks = (code) => templateStore('readwrite', (s) => s.put(planMarks[code], `marks:${code}`)).catch(() => { /* storage blocked: kept for this visit */ });
+
+// Upload, blank and sample for the chosen subject, at the top of the Marks & results tab.
+function marksBar(code) {
+  const saved = planMarks[code];
+  const message = el('p', { class: 'tpl-msg', id: 'res-message', role: 'status' });
+  const input = el('input', { type: 'file', accept: '.xlsx', hidden: true, id: 'res-file', 'aria-label': `Upload the marks sheet for ${code}`,
+    onchange: (e) => { if (e.target.files[0]) uploadMarks(code, e.target.files[0], message); e.target.value = ''; } });
+  return el('section', { class: 'res-upload' },
+    el('h3', { text: 'Marks sheet' }),
+    el('p', {}, saved ? el('strong', { text: `Using ${saved.name}` }) : el('strong', { text: 'No marks uploaded yet. ' }),
+      saved ? `, ${plural(saved.students, 'student')}, uploaded ${dateText(saved.savedAt)}.` : 'Download the blank, enter marks in Excel, then upload it here.'),
+    el('div', { class: 'tpl-actions' },
+      el('a', { class: 'btn btn-outline btn-sm', href: blankMarks(code), download: true }, icon('download'), ' Download blank'),
+      el('button', { class: 'btn btn-primary btn-sm', type: 'button', id: 'res-upload', onclick: () => input.click() }, icon('upload'), saved ? ' Upload a new marks sheet' : ' Upload marks sheet'),
+      saved ? null : el('button', { class: 'btn btn-outline btn-sm', type: 'button', text: 'Try the sample marks', onclick: loadSampleMarks }),
+      saved ? el('button', { class: 'btn-link', type: 'button', text: 'Remove marks', onclick: async () => { await removeMarks(code); renderResults(); } }) : null),
+    (saved ? saved.warnings : []).map((text) => el('p', { class: 'tpl-msg is-warning', text })),
+    message, input);
+}
+
+async function loadSampleMarks() {
+  const code = planResultsCode;
+  const name = planIndex[code].marks;
+  try {
+    const res = await fetch(PLAN_DIR + name);
+    if (!res.ok) throw new Error(name);
+    await uploadMarks(code, new File([await res.blob()], name), $('res-message'));
+  } catch (e) {
+    $('res-message').textContent = 'The sample marks couldn’t be loaded.';
+  }
+}
+
+function distributionChart(clo, n, cutoffs, top) {
+  const bins = Array.from({ length: 100 / BIN_WIDTH }, () => ({ exceed: 0, meet: 0, below: 0 }));
+  for (const { got } of clo.scores) {
+    bins[Math.min(bins.length - 1, Math.floor(got / clo.most * 100 / BIN_WIDTH))][bandOf(got, clo.most, cutoffs)] += 1;
+  }
+  const readout = el('p', { class: 'res-readout', text: `${plural(clo.scores.length, 'student')}. Point at a bar for detail.` });
+  const bars = bins.map((bin, i) => {
+    const total = bin.exceed + bin.meet + bin.below;
+    const parts = ['exceed', 'meet', 'below'].filter((band) => bin[band]).map((band) => `${bin[band]} ${BAND_LABEL[band]}`);
+    const text = `${i * BIN_WIDTH}% to ${(i + 1) * BIN_WIDTH}%: ${plural(total, 'student')}${parts.length ? ` (${parts.join(', ')})` : ''}`;
+    const show = () => { readout.textContent = text; };
+    return el('div', { class: 'res-bin', tabindex: total ? 0 : null, 'aria-label': total ? text : null, onmouseenter: show, onfocus: show },
+      ['exceed', 'meet', 'below'].filter((band) => bin[band]).map((band) => el('span', { class: `res-seg res-${band}`, style: `height:${bin[band] / top * 100}%` })));
+  });
+  return el('figure', { class: 'res-chart' },
+    el('figcaption', {}, el('strong', { text: `CLO${n}` }), ` ${planFields.get(planResultsCode).clos[n - 1].text}`),
+    el('div', { class: 'res-plot' }, bars,
+      el('i', { class: 'res-cut', style: `left:${cutoffs.meet * 100}%` }), el('i', { class: 'res-cut', style: `left:${cutoffs.exceed * 100}%` })),
+    el('div', { class: 'res-axis', 'aria-hidden': 'true' }, [0, 25, 50, 75, 100].map((t) => el('span', { text: `${t}%` }))),
+    readout);
+}
+
+function resultsTable(marks) {
+  const pct = (n, all) => (all ? `${(n / all * 100).toFixed(1)}%` : '-');
+  const rows = marks.clos.map((clo, i) => {
+    const bands = countBands(clo, marks.cutoffs);
+    const shares = clo.scores.map(({ got }) => got / clo.most * 100);
+    const n = shares.length;
+    const status = n ? cloStatus(bands, marks.target) : null;
+    return el('tr', {}, el('td', {}, el('strong', { text: `CLO${i + 1}` })), el('td', { class: 'num', text: String(n) }),
+      el('td', { class: 'num', text: pct(shares.reduce((a, b) => a + b, 0) / 100, n) }),
+      el('td', { class: 'num', text: n ? `${Math.min(...shares).toFixed(0)}% to ${Math.max(...shares).toFixed(0)}%` : '-' }),
+      ['exceed', 'meet', 'below'].map((band) => el('td', { class: 'num', text: `${bands[band]} (${pct(bands[band], n)})` })),
+      el('td', { class: 'num', text: pct(bands.exceed + bands.meet, n) }),
+      el('td', {}, status ? el('span', { class: `res-status res-status-${status}`, text: STATUS_LABEL[status] }) : '-'));
+  });
+  return el('table', { class: 'dt dt-compact' },
+    el('thead', {}, el('tr', {}, ['CLO', 'Students', 'Average', 'Range', 'Exceed', 'Meet', 'Does not meet', 'Met or exceeded', `Against ${percent(marks.target)} target`].map((text) => el('th', { text })))),
+    el('tbody', {}, rows));
+}
+
+function paintResults() {
+  const marks = planMarks[planResultsCode];
+  const { exceed, meet } = marks.cutoffs;
+  const bins = marks.clos.map((clo) => {
+    const counts = new Map();
+    for (const { got } of clo.scores) {
+      const bin = Math.min(100 / BIN_WIDTH - 1, Math.floor(got / clo.most * 100 / BIN_WIDTH));
+      counts.set(bin, (counts.get(bin) || 0) + 1);
+    }
+    return Math.max(0, ...counts.values());
+  });
+  const top = Math.max(1, ...bins); // one height scale, so the CLOs compare directly
+  $('res-slider').style.setProperty('--meet', `${meet * 100}%`);
+  $('res-slider').style.setProperty('--exceed', `${exceed * 100}%`);
+  $('res-range-below').textContent = `0% to below ${percent(meet)}`;
+  $('res-range-meet').textContent = `${percent(meet)} to below ${percent(exceed)}`;
+  $('res-range-exceed').textContent = `${percent(exceed)} to 100%`;
+  const { sheetCutoffs: sheet = marks.cutoffs } = marks;
+  const moved = sheet.exceed !== exceed || sheet.meet !== meet;
+  $('res-reset').hidden = !moved;
+  $('res-sheet-note').textContent = moved ? `The marks sheet says ${percent(sheet.meet)} and ${percent(sheet.exceed)}. The AoL Report will use these sliders, so its numbers will differ from the sheet’s AoL Summary tab.` : '';
+  $('res-charts').replaceChildren(...marks.clos.map((clo, i) => (clo.scores.length ? distributionChart(clo, i + 1, marks.cutoffs, top)
+    : el('figure', { class: 'res-chart' }, el('figcaption', {}, el('strong', { text: `CLO${i + 1}` }), ' No marks for this CLO.')))));
+  $('res-table').replaceChildren(resultsTable(marks));
+  marks.clos.forEach((clo, i) => {
+    const card = $(`res-review-${i}`);
+    if (!card) return;
+    card.querySelector('.res-analysis').value = marks.review[i].analysis;
+    card.querySelector('.res-plan').value = marks.review[i].improvement;
+    const status = clo.scores.length ? cloStatus(countBands(clo, marks.cutoffs), marks.target) : null;
+    const pill = card.querySelector('.res-status');
+    if (status && card.dataset.status !== status) { card.dataset.status = status; fillReviewCoaching(card, clo, status, i); }
+    if (status) { pill.className = `res-status res-status-${status}`; pill.textContent = STATUS_LABEL[status]; }
+  });
+}
+
+function moveCutoff(which, value) {
+  const marks = planMarks[planResultsCode];
+  const { exceed, meet } = marks.cutoffs;
+  const next = which === 'meet' ? { exceed, meet: Math.max(1, Math.min(value, exceed * 100 - 1)) / 100 }
+    : { meet, exceed: Math.min(100, Math.max(value, meet * 100 + 1)) / 100 };
+  applyCutoffs(marks, next);
+  $('res-meet').value = Math.round(next.meet * 100);
+  $('res-exceed').value = Math.round(next.exceed * 100);
+  paintResults();
+}
+
+function fillReviewCoaching(card, clo, status, i) {
+  const marks = planMarks[planResultsCode];
+  const weakest = weakestItem(clo);
+  const fill = (text) => text.replace('{item}', weakest ? weakest.label : 'this assessment');
+  const level = weakest && weakest.bloom >= HIGHER_ORDER ? 'higher' : 'lower';
+  card.querySelector('.res-prompts').replaceChildren(...planCoaching.prompts[status].map((text) => el('li', { text: fill(text) })));
+  card.querySelector('.res-suggest').replaceChildren(...planCoaching.suggestions[status][level].map(fill).map((text) => el('button', { class: 'res-chip', type: 'button', text: `+ ${text}`,
+    onclick: () => {
+      const plan = card.querySelector('.res-plan');
+      if (plan.value.includes(text)) return;
+      plan.value = plan.value.trim() ? `${plan.value.trim()}\n${text}` : text;
+      marks.review[i].improvement = plan.value;
+      marks.review[i].improvementEdited = true;
+      saveMarks(planResultsCode);
+    } })));
+}
+
+function reviewCard(clo, i) {
+  const marks = planMarks[planResultsCode];
+  const fields = planFields.get(planResultsCode).clos[i];
+  const edit = (key, cls, label) => el('label', { class: 'res-field' }, el('span', { text: label }),
+    el('textarea', { class: cls, rows: 4, oninput: (e) => { marks.review[i][key] = e.target.value; marks.review[i][`${key}Edited`] = true; }, onchange: () => saveMarks(planResultsCode) }));
+  const sections = [...new Set(clo.scores.map((s) => s.section).filter(Boolean))].sort().map((section) => {
+    const scores = clo.scores.filter((s) => s.section === section);
+    return `Section ${section} ${(scores.reduce((sum, s) => sum + s.got / clo.most * 100, 0) / scores.length).toFixed(1)}%`;
+  });
+  const card = el('article', { class: 'res-card', id: `res-review-${i}` },
+    el('div', { class: 'res-card-head' }, el('h4', { text: `CLO${i + 1} · PLG ${fields.plg}` }), el('span', { class: 'res-status' })),
+    el('p', { class: 'fine', text: fields.text }),
+    el('p', { class: 'res-evidence' }, el('strong', { text: 'Evidence: ' }),
+      [...clo.items.filter((item) => item.average != null).map((item) => `${item.label} ${item.average.toFixed(1)}%`), ...sections].join(' · ')),
+    el('div', { class: 'res-split' },
+      el('div', {}, el('h5', { text: 'Ask yourself' }), el('ul', { class: 'res-prompts' })),
+      el('div', {}, edit('analysis', 'res-analysis', 'Analysis of Result'),
+        edit('improvement', 'res-plan', 'Improvement Plan'),
+        el('h5', { text: 'Suggestions to add' }), el('div', { class: 'res-suggest' }),
+        el('button', { class: 'btn-link', type: 'button', text: 'Go back to the draft', onclick: () => {
+          marks.review[i] = {};
+          applyCutoffs(marks, marks.cutoffs);
+          saveMarks(planResultsCode);
+          paintResults();
+        } }))));
+  return card;
+}
+
+async function renderResults() {
+  const subjects = planSubjects();
+  if (!subjects.length) return;
+  planResultsCode ||= subjects[0]['Subject Code'];
+  await subjectFields(planResultsCode);
+  await loadCoaching();
+  const picker = el('select', { id: 'res-subject', onchange: (e) => { planResultsCode = e.target.value; renderResults(); } },
+    subjects.map((c) => el('option', { value: c['Subject Code'], text: `${c['Subject Code']} ${c.Subject}${planMarks[c['Subject Code']] ? '' : ' (no marks yet)'}` })));
+  picker.value = planResultsCode;
+  const head = [el('div', { class: 'toolbar' }, el('label', { class: 'select' }, el('span', { text: 'Subject' }), picker)), marksBar(planResultsCode)];
+  const marks = planMarks[planResultsCode];
+  if (!marks) { $('plan-panel-results').replaceChildren(...head); return; }
+  const slider = (id, which, label) => el('input', { type: 'range', id, min: 0, max: 100, step: 1, 'aria-label': label, value: Math.round(marks.cutoffs[which] * 100),
+    oninput: (e) => moveCutoff(which, Number(e.target.value)), onchange: () => saveMarks(planResultsCode) });
+  const range = (band, label) => el('div', { class: 'res-range' }, el('i', { class: `res-key res-${band}` }), el('strong', { text: label }), el('span', { id: `res-range-${band}` }));
+  $('plan-panel-results').replaceChildren(...head,
+    el('p', { class: 'plan-intro' }, `Marks from ${marks.name}, ${plural(marks.students, 'student')}. Drag the two handles to set where each band starts and ends. The bands meet, so the top of one is the bottom of the next.`),
+    el('section', { class: 'res-bands' },
+      el('div', { class: 'band-slider', id: 'res-slider' }, slider('res-meet', 'meet', 'Lowest mark for Meet Expectation, in percent'), slider('res-exceed', 'exceed', 'Lowest mark for Exceed Expectation, in percent')),
+      el('div', { class: 'band-scale', 'aria-hidden': 'true' }, [0, 25, 50, 75, 100].map((t) => el('span', { text: `${t}%` }))),
+      el('div', { class: 'res-ranges' }, range('below', 'Does not meet'), range('meet', 'Meet'), range('exceed', 'Exceed')),
+      el('button', { class: 'btn-link', type: 'button', id: 'res-reset', text: 'Go back to the marks sheet’s cut-offs', onclick: () => {
+        applyCutoffs(marks, marks.sheetCutoffs);
+        saveMarks(planResultsCode);
+        renderResults();
+      } }),
+      el('p', { class: 'fine', id: 'res-sheet-note' })),
+    el('h3', { class: 'subtitle', text: 'Distribution of marks by CLO' }),
+    el('p', { class: 'fine', text: 'Each bar is 5% of the marks for that CLO, and its height is the number of students. The two lines are the cut-offs.' }),
+    el('div', { class: 'res-charts', id: 'res-charts' }),
+    el('div', { class: 'table-card table-scroll', id: 'res-table' }),
+    el('h3', { class: 'subtitle', text: 'Analysis of results and improvement plan' }),
+    el('p', { class: 'fine', text: 'Start from the questions, then rewrite the draft in your own words. Your text goes into the last table of the AoL Report, and the numbers in an untouched draft follow the sliders.' }),
+    ...marks.clos.map((clo, i) => (clo.scores.length ? reviewCard(clo, i) : null)).filter(Boolean),
+    el('div', { class: 'plan-actions' },
+      el('button', { class: 'btn btn-primary', type: 'button', onclick: () => downloadReport(planResultsCode) }, icon('download'), ' Download AoL Report'),
+      el('span', { class: 'fine', id: 'res-status', role: 'status' })));
+  marks.clos.forEach((clo, i) => {
+    const card = $(`res-review-${i}`);
+    if (!card) return;
+    const status = cloStatus(countBands(clo, marks.cutoffs), marks.target);
+    card.dataset.status = status;
+    fillReviewCoaching(card, clo, status, i);
+  });
+  paintResults();
+}
+
+async function downloadReport(code) {
+  const name = planIndex[code].report;
+  $('res-status').textContent = `Building ${name}…`;
+  try {
+    await saveMarks(code);
+    saveBlob(await planBlob({ code, kind: 'report', name }), name);
+    $('res-status').textContent = `${name} is ready.`;
+  } catch (e) {
+    $('res-status').textContent = 'The report couldn’t be built. Check your template’s marked fields, or restore the default.';
+  }
+}
+
+// ------------------------------------------------------------------ outline review: reference, reupload, approval, PDF, sharing
+
+const OUTLINE_STATUS = { draft: 'Not submitted', submitted: 'Waiting for approval', changes: 'Changes requested', approved: 'Approved' };
+const dateText = (iso) => new Date(iso).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+const OUTLINE_STYLES = ["p[style-name='Subtitle'] => h1:fresh", "p[style-name='Heading 1'] => p.doc-detail:fresh", "p[style-name='Heading 5'] => h2:fresh"];
+const DOC_CSS = 'body{font:11pt/1.35 "Times New Roman",Times,serif;color:#111;background:#fff;margin:28px;white-space:pre-wrap;tab-size:6}h1,h2,.doc-h{font-size:14pt;font-weight:700;margin:14px 0 6px}h1{text-align:center}p{margin:0 0 6px}.doc-detail{tab-size:26}table{border-collapse:collapse;width:100%;margin:6px 0 12px;white-space:normal}td,th{border:1px solid #888;padding:4px 6px;vertical-align:top;font-size:11pt}td p{margin:0}img{display:block;margin:0 auto 8px;max-width:220px}';
+
+const saveOutline = (code) => templateStore('readwrite', (s) => s.put(planOutlines[code], `outline:${code}`));
+
+async function loadSavedOutlines() {
+  for (const c of planSubjects()) {
+    try {
+      const saved = await templateStore('readonly', (s) => s.get(`outline:${c['Subject Code']}`));
+      if (saved) planOutlines[c['Subject Code']] = saved;
+    } catch (e) { /* storage blocked: the workflow starts fresh */ }
+  }
+}
+
+async function outlineBody(blob) {
+  const mammoth = await loadScript(MAMMOTH, 'mammoth');
+  const { value } = await mammoth.convertToHtml({ arrayBuffer: await blob.arrayBuffer() }, { styleMap: OUTLINE_STYLES });
+  const { body } = new DOMParser().parseFromString(value, 'text/html');
+  for (const p of body.querySelectorAll(':scope > p')) {
+    const bold = p.textContent.trim() && [...p.childNodes].every((n) => n.nodeName === 'STRONG' || !n.textContent.trim());
+    if (bold && !/^(DRAFT FOR|PREVIOUS VERSION)/.test(p.textContent)) p.classList.add('doc-h');
+    if (p.classList.contains('doc-detail')) {
+      const [label, ...value] = p.textContent.split('\t');
+      p.replaceChildren(el('strong', { text: label }), `\t${value.join(' ')}`);
+    }
+  }
+  // Word numbers the S. No. column itself, so those cells arrive empty.
+  for (const table of body.querySelectorAll('table')) {
+    if (!/^S\.?\s*No/i.test(table.rows[0].cells[0].textContent.trim())) continue;
+    [...table.rows].slice(1).forEach((row, n) => { if (!row.cells[0].textContent.trim()) row.cells[0].textContent = `${n + 1}.`; });
+  }
+  return body;
+}
+
+async function setOutline(code, name, blob, message) {
+  const old = planOutlines[code];
+  message.textContent = 'Checking the file…';
+  message.className = 'tpl-msg';
+  try {
+    await outlineBody(blob);
+    planOutlines[code] = { name, blob, savedAt: new Date().toISOString(), version: (old ? old.version : 0) + 1, status: 'draft' };
+    await saveOutline(code);
+    clearPlanResults();
+    renderOutline();
+  } catch (e) {
+    message.textContent = 'That file couldn’t be read as a Word document.';
+    message.className = 'tpl-msg is-error';
+  }
+}
+
+async function decideOutline(code, changes) {
+  planOutlines[code] = { ...planOutlines[code], ...changes };
+  try { await saveOutline(code); } catch (e) { /* storage blocked: kept for this visit */ }
+  clearPlanResults();
+  renderOutline();
+}
+
+const pdfText = (text) => text.replace(/[‘’]/g, "'").replace(/[“”]/g, '"').replace(/[–—]/g, '-').replace(/₹/g, 'Rs ').replace(/ /g, ' ');
+
+/** Writes the approved outline as a PDF in the same type as the Word document: Times, 14 point headings, 11 point text. */
+async function outlinePdf(code, record) {
+  const { jsPDF } = await loadScript(JSPDF, 'jspdf');
+  await loadScript(AUTOTABLE, 'jspdf-autotable');
+  const body = await outlineBody(record.blob);
+  const doc = new jsPDF({ unit: 'pt', format: 'a4' });
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const pageHeight = doc.internal.pageSize.getHeight();
+  const margin = 56;
+  const right = pageWidth - margin;
+  let y = margin + 8;
+  const room = (height) => { if (y + height > pageHeight - margin) { doc.addPage(); y = margin + 8; } };
+
+  const runsOf = (node, bold = false) => [...node.childNodes].flatMap((n) => {
+    if (n.nodeType === Node.TEXT_NODE) return [{ text: pdfText(n.textContent), bold }];
+    return runsOf(n, bold || n.nodeName === 'STRONG' || n.nodeName === 'B');
+  });
+
+  function write(runs, { size = 11, center = false, stop = 40, after = 5 } = {}) {
+    const height = size * 1.25;
+    const words = runs.flatMap(({ text, bold }) => text.split(/(\s+)/).filter(Boolean).map((word) => ({ word, bold })));
+    const lines = [[]];
+    let x = margin;
+    let hang = margin;
+    for (const { word, bold } of words) {
+      doc.setFont('times', bold ? 'bold' : 'normal');
+      doc.setFontSize(size);
+      if (word.includes('\t')) { hang = margin + stop; x = Math.max(hang, x + 6); continue; }
+      const width = doc.getTextWidth(word);
+      if (/^\s+$/.test(word)) { if (x > hang) x += width; continue; }
+      if (x + width > right && x > hang) { lines.push([]); x = hang; }
+      lines[lines.length - 1].push({ word, bold, x, width });
+      x += width;
+    }
+    for (const line of lines) {
+      room(height);
+      const shift = center && line.length ? (right - margin - (line.at(-1).x + line.at(-1).width - margin)) / 2 : 0;
+      for (const { word, bold, x: at } of line) {
+        doc.setFont('times', bold ? 'bold' : 'normal');
+        doc.setFontSize(size);
+        doc.text(word, at + shift, y);
+      }
+      y += height;
+    }
+    y += after;
+  }
+
+  const cellLines = (cell) => {
+    const lists = [...cell.querySelectorAll('li')].map((li, i) => `${String.fromCharCode(97 + i)}. ${li.textContent.trim()}`);
+    const paragraphs = [...cell.querySelectorAll(':scope > p')].map((p) => p.textContent.trim()).filter(Boolean);
+    const text = paragraphs.length || lists.length ? [...paragraphs, ...lists].join('\n') : cell.textContent.trim();
+    return pdfText(text);
+  };
+
+  for (const node of body.children) {
+    const text = node.textContent.trim();
+    const image = node.querySelector('img');
+    if (image) {
+      const { width, height } = doc.getImageProperties(image.src);
+      const shown = 170;
+      room(shown * height / width + 8);
+      doc.addImage(image.src, (pageWidth - shown) / 2, y - 8, shown, shown * height / width);
+      y += shown * height / width + 4;
+    } else if (node.nodeName === 'TABLE') {
+      const cells = [...node.rows].map((row) => [...row.cells].map((cell) => ({ content: cellLines(cell), colSpan: cell.colSpan, rowSpan: cell.rowSpan })));
+      const [head, ...rows] = cells.length > 1 ? cells : [[], ...cells]; // a sign-off box is one row with no header
+      doc.autoTable({ startY: y, head: head.length ? [head] : [], body: rows, theme: 'grid', rowPageBreak: 'avoid', margin: { left: margin, right: margin, top: margin, bottom: margin + 8 },
+        styles: { font: 'times', fontSize: 11, textColor: 20, lineColor: 130, lineWidth: 0.5, cellPadding: 3.5, valign: 'middle' },
+        headStyles: { fillColor: [240, 240, 240], textColor: 20, fontStyle: 'bold' } });
+      y = doc.lastAutoTable.finalY + 14;
+    } else if (node.nodeName === 'OL' || node.nodeName === 'UL') {
+      [...node.children].forEach((li, i) => write([{ text: `${i + 1}.\t`, bold: true }, ...runsOf(li)], { after: 2 }));
+      y += 3;
+    } else if (/^(DRAFT FOR|PREVIOUS VERSION)/.test(text)) {
+      continue; // the version line belongs to the working copy, not the approved one
+    } else if (text) {
+      const heading = node.nodeName === 'H1' || node.nodeName === 'H2' || node.classList.contains('doc-h');
+      if (heading) { y += 6; room(50); }
+      const detail = node.classList.contains('doc-detail');
+      const runs = heading ? [{ text: pdfText(text), bold: true }] : runsOf(node);
+      write(detail ? [{ text: text.split('\t')[0], bold: true }, { text: '\t', bold: false }, { text: pdfText(text.split('\t').slice(1).join(' ')), bold: false }] : runs,
+        { size: heading ? 14 : 11, center: node.nodeName === 'H1', stop: detail ? 130 : 40, after: heading ? 7 : 5 });
+    }
+  }
+  const stamp = `Approved by ${record.approvedBy} on ${dateText(record.approvedAt)}. Version ${record.version}.`;
+  const pages = doc.getNumberOfPages();
+  for (let page = 1; page <= pages; page++) {
+    doc.setPage(page);
+    doc.setFont('times', 'normal');
+    doc.setFontSize(11);
+    doc.text(pdfText(stamp), margin, pageHeight - 30);
+    doc.text(`${page} of ${pages}`, right, pageHeight - 30, { align: 'right' });
+  }
+  doc.setProperties({ title: `${code} Course Outline`, author: 'E-Logic School of Business', creator: 'E-Logic Course Planner' });
+  return doc.output('blob');
+}
+
+const pdfName = (code) => `${code}_Course_Outline_Approved.pdf`;
+
+async function makeOutlinePdf(code, message) {
+  message.textContent = 'Making the PDF…';
+  message.className = 'tpl-msg';
+  try {
+    const record = planOutlines[code];
+    const pdf = await outlinePdf(code, record);
+    await decideOutline(code, { pdf, pdfAt: new Date().toISOString() });
+  } catch (e) {
+    message.textContent = 'The PDF couldn’t be made.';
+    message.className = 'tpl-msg is-error';
+  }
+}
+
+async function shareOutline(code) {
+  const record = planOutlines[code];
+  const fields = await subjectFields(code);
+  const subject = `${code} ${fields.course_name}: Course Outline`;
+  const text = `Dear students,\n\nThe approved Course Outline for ${fields.course_name} is attached. Please read it before the first session.\n\n${fields.instructor}`;
+  const file = new File([record.pdf], pdfName(code), { type: 'application/pdf' });
+  if (navigator.canShare && navigator.canShare({ files: [file] })) {
+    try {
+      await navigator.share({ files: [file], title: subject, text });
+    } catch (e) { return; } // cancelled: nothing was shared
+  } else {
+    saveBlob(record.pdf, pdfName(code));
+    el('a', { href: `mailto:bba-${fields.batch}@elogic.example.edu?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(text)}` }).click();
+  }
+  await decideOutline(code, { sharedAt: new Date().toISOString() });
+}
+
+function outlineStep(n, title, state, ...children) {
+  return el('li', { class: `flow-step is-${state}` }, el('h3', {}, el('b', { text: String(n) }), title), ...children);
+}
+
+async function renderOutline() {
+  const subjects = planSubjects();
+  if (!subjects.length) return;
+  planOutlineCode ||= subjects[0]['Subject Code'];
+  const code = planOutlineCode;
+  const fields = await subjectFields(code);
+  const record = planOutlines[code];
+  const status = record ? record.status : null;
+  const approved = status === 'approved';
+  const message = el('p', { class: 'tpl-msg', role: 'status' });
+  const input = el('input', { type: 'file', accept: '.docx', hidden: true, id: 'flow-file', 'aria-label': `Upload the edited outline for ${code}`,
+    onchange: (e) => {
+      const [file] = e.target.files;
+      if (!file) return;
+      if (!file.name.toLowerCase().endsWith('.docx') || file.size > TEMPLATE_LIMIT) { message.textContent = 'Please upload a .docx file under 10 MB.'; message.className = 'tpl-msg is-error'; return; }
+      setOutline(code, file.name, new Blob([file], { type: DOCX_TYPE }), message);
+      e.target.value = '';
+    } });
+  const useDraft = async () => {
+    const res = await fetch(PLAN_DIR + planIndex[code].outline);
+    if (res.ok) setOutline(code, planIndex[code].outline, await res.blob(), message);
+  };
+  const picker = el('select', { id: 'flow-subject', onchange: (e) => { planOutlineCode = e.target.value; renderOutline(); } },
+    subjects.map((c) => el('option', { value: c['Subject Code'], text: `${c['Subject Code']} ${c.Subject}` })));
+  picker.value = code;
+  const frame = el('iframe', { class: 'tpl-frame flow-frame', title: `${code} outline as it will appear`, sandbox: '' });
+  const approver = el('input', { type: 'text', id: 'flow-approver', value: fields.endorser, 'aria-label': 'Approver’s name' });
+  const comment = el('textarea', { id: 'flow-comment', rows: 2, 'aria-label': 'Comment for the faculty member', placeholder: 'Comment for the faculty member' });
+  const decision = (changes) => {
+    const by = approver.value.trim();
+    if (!by) { message.textContent = 'Please enter the approver’s name.'; message.className = 'tpl-msg is-error'; return; }
+    decideOutline(code, changes(by));
+  };
+  $('plan-panel-outline').replaceChildren(
+    el('div', { class: 'toolbar' }, el('label', { class: 'select' }, el('span', { text: 'Subject' }), picker)),
+    el('p', { class: 'fine plan-intro', text: 'Saved in this browser only, and the site has no sign-in, so approval here shows the steps rather than proving who approved.' }),
+    el('ol', { class: 'flow' },
+      outlineStep(1, 'Start from the previous version', record ? 'done' : 'active',
+        el('p', { text: `Download last year’s outline, update it in Word for ${fields.academic_year}, and save it.` }),
+        el('div', { class: 'tpl-actions' }, el('a', { class: 'btn btn-outline btn-sm', href: PLAN_DIR + planIndex[code].previous, download: true, id: 'flow-previous' }, icon('download'), ' Download previous version'))),
+      outlineStep(2, 'Upload your updated outline', record ? 'done' : 'active',
+        record ? el('p', {}, el('strong', { text: `Version ${record.version}: ` }), `${record.name}, saved ${dateText(record.savedAt)}.`) : null,
+        record && record.version > 1 ? null : el('p', { class: 'fine', text: 'A new upload starts a new version, which has to be approved again.' }),
+        el('div', { class: 'tpl-actions' },
+          el('button', { class: 'btn btn-primary btn-sm', type: 'button', text: record ? 'Upload a new version' : 'Upload outline', onclick: () => input.click() }),
+          record ? null : el('button', { class: 'btn btn-outline btn-sm', type: 'button', id: 'flow-draft', text: `Use the ${fields.academic_year} draft instead`, onclick: useDraft })),
+        message, input),
+      outlineStep(3, 'Check what goes into the document', !record ? 'todo' : status === 'draft' || status === 'changes' ? 'active' : 'done',
+        record ? el('p', { class: 'fine', text: 'This is the text of your Word file, shown in its final type. Fix anything in Word and upload it again.' }) : el('p', { class: 'fine', text: 'Your outline appears here after you upload it.' }),
+        record ? frame : null,
+        status === 'draft' || status === 'changes' ? el('div', { class: 'tpl-actions' },
+          el('button', { class: 'btn btn-primary btn-sm', type: 'button', id: 'flow-submit', text: 'Submit for approval', onclick: () => decideOutline(code, { status: 'submitted', submittedAt: new Date().toISOString() }) })) : null),
+      outlineStep(4, 'Approval', !record || status === 'draft' ? 'todo' : status === 'approved' ? 'done' : 'active',
+        el('p', {}, el('strong', { text: record ? `${OUTLINE_STATUS[status]}. ` : '' }), `Approver: ${fields.endorser}, ${fields.endorser_role}.`),
+        status === 'changes' ? el('p', { class: 'tpl-msg is-warning', text: `${record.reviewedBy}: ${record.comment || 'Please revise and upload a new version.'}` }) : null,
+        approved ? el('p', { text: `Approved by ${record.approvedBy} on ${dateText(record.approvedAt)}${record.comment ? `: ${record.comment}` : '.'}` }) : null,
+        status === 'submitted' ? el('div', { class: 'flow-form' }, approver, comment, el('div', { class: 'tpl-actions' },
+          el('button', { class: 'btn btn-primary btn-sm', type: 'button', id: 'flow-approve', text: 'Approve', onclick: () => decision((by) => ({ status: 'approved', approvedBy: by, approvedAt: new Date().toISOString(), comment: comment.value.trim() })) }),
+          el('button', { class: 'btn btn-outline btn-sm', type: 'button', id: 'flow-changes', text: 'Request changes', onclick: () => decision((by) => ({ status: 'changes', reviewedBy: by, comment: comment.value.trim() })) }))) : null),
+      outlineStep(5, 'Make the PDF and share it with students', !approved ? 'todo' : record.sharedAt ? 'done' : 'active',
+        !approved ? el('p', { class: 'fine', text: 'Available once the outline is approved.' }) : el('div', { class: 'tpl-actions' },
+          record.pdf ? null : el('button', { class: 'btn btn-primary btn-sm', type: 'button', id: 'flow-pdf', text: 'Generate PDF', onclick: () => makeOutlinePdf(code, message) }),
+          record.pdf ? el('button', { class: 'btn btn-outline btn-sm', type: 'button', id: 'flow-pdf-download', onclick: () => saveBlob(record.pdf, pdfName(code)) }, icon('download'), ' Download PDF') : null,
+          record.pdf ? el('button', { class: 'btn btn-primary btn-sm', type: 'button', id: 'flow-share', text: 'Share with students', onclick: () => shareOutline(code) }) : null),
+        approved && record.pdf ? el('p', { class: 'fine', text: `Saves the PDF and opens an email to the ${fields.batch} batch (${fields.students} students) for you to attach it to and send.` }) : null,
+        record && record.sharedAt ? el('p', {}, el('strong', { text: 'Shared ' }), `on ${dateText(record.sharedAt)}.`) : null)));
+  if (record) {
+    const body = await outlineBody(record.blob);
+    frame.srcdoc = `<!doctype html><meta charset="utf-8"><style>${DOC_CSS}</style>${body.innerHTML}`;
+  }
 }
 
 function renderTemplates() {
@@ -748,7 +1346,7 @@ function renderTemplates() {
 
 async function renderPlanner() {
   $('plan-tab-generate').addEventListener('click', () => { location.hash = 'planner'; });
-  $('plan-tab-templates').addEventListener('click', () => { location.hash = 'planner/templates'; });
+  for (const name of PLAN_TABS.slice(1)) $(`plan-tab-${name}`).addEventListener('click', () => { location.hash = `planner/${name}`; });
   $('tpl-preview-close').addEventListener('click', () => { $('tpl-preview').hidden = true; });
   await loadCustomTemplates();
   try {
@@ -760,6 +1358,7 @@ async function renderPlanner() {
     return;
   }
   await loadSavedMarks();
+  await loadSavedOutlines();
   renderTemplates();
   const rows = planSubjects();
   $('plan-program').append(el('option', { text: 'BBA' }));
@@ -767,13 +1366,14 @@ async function renderPlanner() {
     ...[...new Set(data.curriculum.map((c) => c.Semester))].map((s) => el('option', { value: s, text: `Semester ${s}`, disabled: !rows.some((c) => c.Semester === s) })));
   fillPlanSubjects();
   $('plan-note').textContent = `${plural(rows.length, 'sample subject')} available so far, with more to come, and the rest are greyed out. `
-    + 'All documents are drafts for faculty review. AoL Reports and marks sheets show dummy marks until marks are uploaded on the Templates tab.';
+    + 'All documents are drafts for faculty review. AoL Reports and marks sheets show dummy marks until marks are uploaded on the Marks & results tab, where faculty also rewrite the draft in the last table of each report.';
   $('plan-sem').addEventListener('change', () => { fillPlanSubjects(); clearPlanResults(); });
   $('plan-subject').addEventListener('change', clearPlanResults);
   for (const [kind] of PLAN_OUTPUTS) $(`plan-${kind}`).addEventListener('change', clearPlanResults);
   clearPlanResults();
   $('plan-generate').addEventListener('click', generatePlan);
   $('plan-zip').addEventListener('click', downloadPlanZip);
+  if (location.hash.startsWith('#planner')) showPlanTab(location.hash.split('/')[1]);
 }
 
 const newKb = () => ({ files: [], chunks: [], index: null, full: true, ready: null });
@@ -1378,6 +1978,8 @@ async function start() {
   document.querySelectorAll('[data-total-credits]').forEach((n) => { n.textContent = data.totalCredits; });
   renderStructure();
   renderCurriculum();
+  renderYear4();
+  renderScheduling();
   renderFaculty();
   renderStudents();
   renderPlanner();

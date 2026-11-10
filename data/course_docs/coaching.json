@@ -1,0 +1,43 @@
+{
+ "_about": "Shared by build_marks.py and the Course Planner page, so a report drafts the same text wherever it is built.",
+ "near_margin": 15,
+ "analysis": {
+  "lead": "{met}% of students met or exceeded expectations against a target of {target}%, and {below}% did not meet them. The class averaged {average}% on this CLO.",
+  "several": " The lowest-scoring item was {item} ({item_average}%).",
+  "single": " It was assessed through {item}."
+ },
+ "prompts": {
+  "below": ["Did this CLO get enough class time for its weight in the assessment?",
+            "Did students practise this kind of task before it was graded?",
+            "Was {item} a fair test of this CLO, and did students know what a good answer looks like?",
+            "When did students first get feedback on this CLO, and was that early enough to act on?"],
+  "near": ["Who sits just below the Meet line, and what would have moved them over it?",
+           "Which session on this CLO would I teach differently next time?",
+           "Did {item} show what students can do, or did it catch them out?"],
+  "above": ["What worked here that I should keep, or use for a weaker CLO?",
+            "Was the assessment demanding enough for the strongest students?",
+            "Does anything in this result come from the marking rather than the learning?"]
+ },
+ "suggestions": {
+  "below": {
+   "higher": ["Add two graded practice cases on {item} before the assessment, with a worked model answer and the rubric shared in advance.",
+              "Replace one lecture with a guided case discussion where students defend a decision, then give written feedback within a week.",
+              "Run a short diagnostic after the first sessions and hold a support clinic for students below the Meet line."],
+   "lower": ["Add short weekly quizzes on {item}, with answers reviewed at the start of the next class.",
+             "Reteach the core method with worked examples, then set a low-stakes practice before the assessment.",
+             "Run peer study circles for students below the Meet line ahead of the assessment."]
+  },
+  "near": {
+   "higher": ["Add one more practice case on {item}, and share two sample answers at different rubric levels.",
+              "Give students feedback on a draft before the final submission for this CLO."],
+   "lower": ["Add a revision session on {item} before the assessment.",
+             "Give an early low-stakes check, so that students near the Meet line know where they stand."]
+  },
+  "above": {
+   "higher": ["Keep the current approach, and add a stretch task for students who already exceed expectations.",
+              "Share what worked on this CLO with colleagues teaching related subjects."],
+   "lower": ["Keep the current approach, and raise the Bloom's level of {item} so the CLO is tested in more depth.",
+             "Share what worked on this CLO with colleagues teaching related subjects."]
+  }
+ }
+}

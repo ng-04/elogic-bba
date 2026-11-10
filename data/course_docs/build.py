@@ -39,9 +39,12 @@ REPORT_TEMPLATE = TEMPLATES / "AoL_Report_Format.docx"
 
 SCHOOL = "E-Logic School of Business, Bengaluru"
 PROGRAMME = "Bachelor of Business Administration (BBA)"
-ROMAN = {1: "I", 2: "II", 3: "III", 4: "IV", 5: "V", 6: "VI", "{semester}": "{semester}"}
+ROMAN = {1: "I", 2: "II", 3: "III", 4: "IV", 5: "V", 6: "VI", 7: "VII", 8: "VIII", "{semester}": "{semester}"}
 DRAFT = "DRAFT FOR FACULTY REVIEW"
+PREVIOUS_YEAR = "2025-26"
+PREVIOUS = f"PREVIOUS VERSION {PREVIOUS_YEAR}: FOR REFERENCE"
 FONT = "Times New Roman"
+HEADING_SIZE, BODY_SIZE = 14, 11
 NAVY, ORANGE = (0x16, 0x23, 0x3F), (0xE3, 0x5A, 0x1B)
 FONTS = Path("/mnt/c/Windows/Fonts")
 
@@ -156,6 +159,15 @@ def tidy_table(table, heading=None):
                     paragraph.paragraph_format.keep_with_next = True
 
 
+def set_widths(table, widths):
+    """Sets a table's column widths in twentieths of a point."""
+    for column, width in zip(table._tbl.tblGrid, widths):
+        column.set(qn("w:w"), str(width))
+    for row in table.rows:
+        for cell, width in zip(row.cells, widths):
+            cell.width = Pt(width / 20)
+
+
 def keep_together(table):
     """Keeps a short table on one page."""
     for row in table.rows[:-1]:
@@ -172,12 +184,71 @@ def fit_rows(table, count, first=1):
         table.rows[-1]._tr.addnext(copy.deepcopy(table.rows[first]._tr))
 
 
-def draft_line(after, doc):
+def draft_line(after, doc, text=DRAFT):
     p = insert_after(after, doc)
     p.alignment = WD_ALIGN_PARAGRAPH.CENTER
     p.paragraph_format.space_after = Pt(8)
-    font(p.add_run(DRAFT), size=10, bold=True, color=ORANGE)
+    font(p.add_run(text), bold=True, color=ORANGE)
     return p
+
+
+def set_size(rpr, size):
+    for tag in ("w:sz", "w:szCs"):
+        node = rpr.find(qn(tag))
+        if node is None:
+            node = OxmlElement(tag)
+            rpr.append(node)
+        node.set(qn("w:val"), str(size * 2))
+
+
+def set_fonts(rpr):
+    fonts = rpr.find(qn("w:rFonts"))
+    if fonts is None:
+        fonts = OxmlElement("w:rFonts")
+        rpr.insert(0, fonts)
+    for key in list(fonts.attrib):
+        if key.endswith("Theme"):
+            del fonts.attrib[key]
+    for key in ("ascii", "hAnsi", "cs", "eastAsia"):
+        fonts.set(qn(f"w:{key}"), FONT)
+
+
+def is_heading(paragraph):
+    """A heading is a line outside a table whose text is all bold, apart from the version line under the title."""
+    if not paragraph.text.strip() or paragraph.text in (DRAFT, PREVIOUS):
+        return False
+    style_bold = bool(paragraph.style.font.bold)
+    return all(run.bold or (run.bold is None and style_bold) for run in paragraph.runs if run.text.strip())
+
+
+def set_type(doc):
+    """Times New Roman throughout: 14 point for headings, 11 point for everything else, including tables."""
+    for rpr in doc.styles.element.iter(qn("w:rPr")):
+        set_fonts(rpr)
+    for style in doc.styles.element.findall(qn("w:style")):
+        rpr = style.find(qn("w:rPr"))
+        if rpr is not None and rpr.find(qn("w:sz")) is not None:
+            set_size(rpr, BODY_SIZE)
+
+    def apply(paragraph, size):
+        for run in paragraph.runs:
+            rpr = run._r.get_or_add_rPr()
+            set_fonts(rpr)
+            set_size(rpr, size)
+        ppr = paragraph._p.get_or_add_pPr()
+        mark = ppr.find(qn("w:rPr"))
+        if mark is None:
+            mark = OxmlElement("w:rPr")
+            ppr.append(mark)
+        set_fonts(mark)
+        set_size(mark, size)
+
+    headings = [p._p for p in doc.paragraphs if is_heading(p)]
+    for element in doc.element.body.iter(qn("w:p")):
+        apply(Paragraph(element, doc.element.body), HEADING_SIZE if element in headings else BODY_SIZE)
+    for section in doc.sections:
+        for paragraph in (*section.header.paragraphs, *section.footer.paragraphs):
+            apply(paragraph, BODY_SIZE)
 
 
 def wordmark():
@@ -227,12 +298,13 @@ def clean_package(path):
 
 
 def set_properties(doc, title):
+    set_type(doc)
     props = doc.core_properties
     props.author = props.last_modified_by = "E-Logic School of Business"
     props.title = title
 
 
-def build_outline(content, facts):
+def build_outline(content, facts, previous=False):
     doc = Document(OUTLINE_TEMPLATE)
     body = list(doc.element.body)
     P = lambda i: Paragraph(body[i], doc.element.body)
@@ -242,7 +314,7 @@ def build_outline(content, facts):
     next(r for r in doc.part.rels.values() if r.reltype.endswith("/image")).target_part._blob = wordmark()
     set_text(P(1), SCHOOL.upper())
     set_text(P(2), "{COURSE_NAME}" if s["Assessment"] == "Blank" else s["Subject"].upper())
-    draft_line(body[2], doc)
+    draft_line(body[2], doc, PREVIOUS if previous else DRAFT)
 
     # Course details: one tab stop so the values line up.
     details = [(3, "Programme:", PROGRAMME), (4, "Batch:", facts["batch"]), (5, "Semester:", ROMAN[s["Semester"]]),
@@ -370,7 +442,8 @@ def build_outline(content, facts):
         table._tbl.tblPr.find(qn("w:tblpPr")).set(qn("w:tblpY"), "38")
 
     set_properties(doc, f"{s['Subject Code']} {s['Subject']} Course Outline")
-    path = BLANKS / "E-Logic_Course_Outline_Template.docx" if blank else OUT / f"{s['Subject Code']}_Course_Outline.docx"
+    name = f"{s['Subject Code']}_Course_Outline_{PREVIOUS_YEAR}.docx" if previous else f"{s['Subject Code']}_Course_Outline.docx"
+    path = BLANKS / "E-Logic_Course_Outline_Template.docx" if blank else OUT / name
     doc.save(path)
     clean_package(path)
     return path
@@ -456,6 +529,7 @@ def build_report(content, facts, results):
         set_cell(r.cells[2], c["text"], left=True)
         set_cell(r.cells[3], c["mode"], left=True)
     fill_aol_common(doc, body, content, facts)
+    set_widths(T(9), (720, 810, 5040, 2790))  # the template's narrow columns break "CLO No." at 11 point
 
     fit_rows(T(22), len(clos), first=2)
     for n, (r, c, result) in enumerate(zip(T(22).rows[2:], clos, results), 1):
@@ -468,14 +542,18 @@ def build_report(content, facts, results):
     T(22).rows[1]._tr.get_or_add_trPr().append(OxmlElement("w:tblHeader"))
     keep_together(T(22))
     note = "{results_note} {results_rule}" if blank else f"{RESULTS_NOTE} {RESULTS_RULE}"
-    font(P(23).add_run(note), size=10, italic=True)
+    font(P(23).add_run(note), italic=True)
 
-    # Analysis and improvement are left for faculty, once they have seen the results.
+    # Drafted from the results, for faculty to reflect on and rewrite on the planner's Results tab.
     fit_rows(T(26), len(clos))
-    for n, (r, c) in enumerate(zip(T(26).rows[1:], clos), 1):
+    for n, (r, c, result) in enumerate(zip(T(26).rows[1:], clos, results), 1):
         set_cell(r.cells[0], c.get("first", str(n)))
         set_cell(r.cells[1], f"PLG {c['plg']}")
-        set_cell(r.cells[3], c.get("end_row", ""))
+        set_cell(r.cells[2], result["analysis"], left=True)
+        set_cell(r.cells[3], result["improvement"] + c.get("end_row", ""), left=True)
+        for cell in r.cells[2:]:
+            cell.paragraphs[0].paragraph_format.left_indent = cell.paragraphs[0].paragraph_format.right_indent = Cm(0.1)
+    set_widths(T(26), (810, 810, 3870, 3870))
     tidy_table(T(26), P(24))
     remove(*body[11:13], *body[16:20], body[21], body[25])
 
@@ -522,7 +600,13 @@ def blank_inputs():
 
 
 BLANK_RESULTS = [{"exceed_n": "{exceed_n}", "exceed_pct": "{exceed_pct}", "meet_n": "{meet_n}", "meet_pct": "{meet_pct}",
-                  "below_n": "{below_n}", "below_pct": "{below_pct}{/clos}"}]
+                  "below_n": "{below_n}", "below_pct": "{below_pct}{/clos}", "analysis": "{analysis}", "improvement": "{improvement}"}]
+
+
+def previous_facts(facts):
+    """The same subject one year earlier: the batch before this one, in the previous academic year."""
+    start, end = facts["batch"].split("-")
+    return {**facts, "batch": f"{int(start) - 1}-{int(end) - 1:02d}"}
 
 
 def subject_fields(code):
@@ -568,16 +652,16 @@ HANDBOOK = "E-Logic_BBA_Student_Handbook_2026-27.pdf"
 WORKBOOK = "E-Logic_BBA_Master_Data_2026-27.xlsx"
 CHECKED = "4 November 2026"
 FROM_DATA, AI_DRAFT = "Taken from source", "AI draft: faculty to check"
-# Handbook, Assessment page: what the page fixes for each type, and what the draft had to decide.
+# Handbook, Assessment page (p.9): what the page fixes for each type, and what the draft had to decide.
 ASSESSMENT_TRACE = {
-    "Exam": [("End-term weightage (60%) and length (3 hours)", "Handbook p.8", FROM_DATA),
-             ("Component totals: quizzes 10%, case analysis 10%, mid-term 20%", "Handbook p.8", FROM_DATA),
-             ("Mid-term week", "Handbook p.10", FROM_DATA),
+    "Exam": [("End-term weightage (60%) and length (3 hours)", "Handbook p.9", FROM_DATA),
+             ("Component totals: quizzes 10%, case analysis 10%, mid-term 20%", "Handbook p.9", FROM_DATA),
+             ("Mid-term week", "Handbook p.11", FROM_DATA),
              ("Closed book end-term", "Not in handbook", AI_DRAFT)],
-    "Workshop": [("100% continuous assessment, no end-term exam", "Handbook p.8", FROM_DATA),
-                 ("Components: exercises 50%, participation and peer review 20%, final showcase 30%", "Handbook p.8", FROM_DATA)],
-    "Project": [("Final report and viva, 50%", "Handbook p.8", FROM_DATA),
-                ("Components: proposal 10%, milestone reviews 25%, mentor assessment 15%", "Handbook p.8", FROM_DATA),
+    "Workshop": [("100% continuous assessment, no end-term exam", "Handbook p.9", FROM_DATA),
+                 ("Components: exercises 50%, participation and peer review 20%, final showcase 30%", "Handbook p.9", FROM_DATA)],
+    "Project": [("Final report and viva, 50%", "Handbook p.9", FROM_DATA),
+                ("Components: proposal 10%, milestone reviews 25%, mentor assessment 15%", "Handbook p.9", FROM_DATA),
                 ("Viva length", "Not in handbook", AI_DRAFT)],
 }
 
@@ -658,10 +742,10 @@ def build_reference(content, facts):
         ("Course instructor", "Handbook p.6; master data, Faculty Master sheet", FROM_DATA),
         ("Batch, term, students, sections", "Master data, Faculty Utilization sheet", FROM_DATA),
         *ASSESSMENT_TRACE[s["Assessment"]],
-        ("Plagiarism policy", "Handbook p.8", FROM_DATA),
+        ("Plagiarism policy", "Handbook p.9", FROM_DATA),
         ("PLG names and traits", "Course Outline format", FROM_DATA),
-        ("Related subjects named in the introduction", "Handbook p.6-7", FROM_DATA),
-        ("Endorser", "Handbook p.10 for the role; who endorses is a drafting choice", AI_DRAFT),
+        ("Related subjects named in the introduction", "Handbook p.6-8", FROM_DATA),
+        ("Endorser", "Handbook p.11 for the role; who endorses is a drafting choice", AI_DRAFT),
         ("Introduction, objectives and CLOs", "General subject knowledge", AI_DRAFT),
         ("CLO to PLG mapping", "General subject knowledge", AI_DRAFT),
         ("Session topics, pedagogy and readings", "General subject knowledge", AI_DRAFT),
@@ -700,6 +784,7 @@ if __name__ == "__main__":
         content = json.loads((HERE / "content" / f"{code}.json").read_text())
         facts = subject_facts(code)
         print(build_outline(content, facts))
+        print(build_outline(content, previous_facts(facts), previous=True))
         print(build_aol(content, facts))
         print(build_report(content, facts, class_results(code)))
         print(build_reference(content, facts))

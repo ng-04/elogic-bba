@@ -3,18 +3,21 @@
     "outline": "BBA302_Course_Outline.docx",
     "aol": "BBA302_AoL_Plan.docx",
     "report": "BBA302_AoL_Report.docx",
-    "marks": "BBA302_Marks_Sheet.xlsx"
+    "marks": "BBA302_Marks_Sheet.xlsx",
+    "previous": "previous/BBA302_Course_Outline_2025-26.docx"
   },
   "BBA305": {
     "outline": "BBA305_Course_Outline.docx",
     "aol": "BBA305_AoL_Plan.docx",
     "report": "BBA305_AoL_Report.docx",
-    "marks": "BBA305_Marks_Sheet.xlsx"
+    "marks": "BBA305_Marks_Sheet.xlsx",
+    "previous": "previous/BBA305_Course_Outline_2025-26.docx"
   },
   "BBA404": {
     "outline": "BBA404_Course_Outline.docx",
     "aol": "BBA404_AoL_Plan.docx",
     "report": "BBA404_AoL_Report.docx",
-    "marks": "BBA404_Marks_Sheet.xlsx"
+    "marks": "BBA404_Marks_Sheet.xlsx",
+    "previous": "previous/BBA404_Course_Outline_2025-26.docx"
   }
 }
