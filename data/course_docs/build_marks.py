@@ -144,7 +144,7 @@ def class_results(code):
             if got:
                 score = sum(got)
                 shares.append(score / most * 100)
-                bands["exceed" if score >= EXCEED_AT * most else "meet" if score >= MEET_AT * most else "below"] += 1
+                bands["exceed" if score >= round(EXCEED_AT * most, 4) else "meet" if score >= round(MEET_AT * most, 4) else "below"] += 1
         assessed = sum(bands.values())
         items = []
         for n, top in columns:
@@ -278,8 +278,8 @@ def build_summary(wb, code, sample):
         put(ws, f"F{r}", MEET_AT, fill=INPUT, color=BLUE, fmt="0%")
         put(ws, f"G{r}", TARGET_SHARE, fill=INPUT, color=BLUE, fmt="0%")
         put(ws, f"H{r}", f"=COUNT({scores})", fmt="0")
-        put(ws, f"I{r}", f'=COUNTIF({scores},">="&E{r}*D{r})', fmt="0")
-        put(ws, f"J{r}", f'=COUNTIF({scores},">="&F{r}*D{r})-I{r}', fmt="0")
+        put(ws, f"I{r}", f'=COUNTIF({scores},">="&ROUND(E{r}*D{r},4))', fmt="0")
+        put(ws, f"J{r}", f'=COUNTIF({scores},">="&ROUND(F{r}*D{r},4))-I{r}', fmt="0")
         put(ws, f"K{r}", f"=H{r}-I{r}-J{r}", fmt="0")
         put(ws, f"L{r}", f"=IF(H{r}=0,0,(I{r}+J{r})/H{r})", fmt="0.0%")
         put(ws, f"M{r}", f'=IF(H{r}=0,"",IF(F{r}>=E{r},"Check cut-offs",IF(L{r}>=G{r},"Target met","Below target")))', bold=True)

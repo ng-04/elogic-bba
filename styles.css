@@ -677,7 +677,8 @@ select option:disabled { color: #9aa0ab; }
 .res-delta.is-up { color: var(--green); }
 .res-delta.is-down { color: var(--red); }
 @media (max-width: 1000px) { .res-top { grid-template-columns: 1fr; } }
-.res-scope { margin-bottom: 8px; }
-.res-scope .select { min-height: 40px; }
-.res-scope .select span { white-space: nowrap; }
-#res-scope-note:empty { display: none; }
+.res-cutrow { padding: 10px 0 8px; border-top: 1px solid var(--line); }
+.res-cutrow:first-of-type { border-top: 0; }
+.res-cutrow-head { display: flex; align-items: baseline; gap: 10px; margin-bottom: 4px; }
+.res-cut-text { display: flex; flex-wrap: wrap; gap: 4px 16px; margin: 6px 0 0; font-size: 13px; color: var(--muted); }
+.res-cut-text .res-key { display: inline-block; vertical-align: middle; width: 10px; height: 10px; }
