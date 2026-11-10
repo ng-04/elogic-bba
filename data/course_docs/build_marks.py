@@ -39,7 +39,9 @@ ABSENT = 2  # students who miss the mid-term in the dummy marks
 EXCEED_AT, MEET_AT, TARGET_SHARE = 0.75, 0.5, 0.7
 COACHING = json.loads((HERE / "coaching.json").read_text())
 HIGHER_ORDER = 4  # Bloom's level from which an item asks students to analyse, evaluate or create
-RESULTS_NOTE = "Dummy data: these results are illustrative and do not come from real student marks."
+SAMPLE_YEAR = "2025-26"  # the earlier offering the sample results stand in for
+RESULTS_NOTE = (f"Sample results from the {SAMPLE_YEAR} offering of this course, highlighted in yellow: illustrative marks, not real students'. "
+                "Upload this term's marks sheet on the Marks & results tab of the Course Planner to replace them.")
 RESULTS_RULE = ("Exceed Expectation is 75% or more of the marks for that CLO, Meet Expectation is 50% up to 75%, "
                 "and Does not meet Expectation is below 50%.")
 FIRST = 9  # first student row
@@ -294,7 +296,7 @@ def build_summary(wb, code, sample):
              "AB means absent. A student with no marks at all for a CO is left out of its Assessed count.",
              "Edit only the blue marks on the Marks Sheet and the yellow cells here; everything else recalculates."]
     if sample:
-        notes.insert(1, "All marks in this file are dummy data.")
+        notes.insert(1, f"Sample results: all marks in this file are illustrative, standing in for the {SAMPLE_YEAR} offering.")
     for n, text in enumerate(notes):
         r = start + len(clos) + 2 + n
         ws.merge_cells(f"A{r}:K{r}")
@@ -317,13 +319,13 @@ def build_help(wb, code, sample):
              "Enter each student's marks in the blue cells on the Marks Sheet tab, and AB if a student was absent.",
              "Each column counts towards the CLO in its Course Outcome row, so CO1 is CLO1. Columns with no Course Outcome aren't counted.",
              "Use the columns for the assessments named in the AoL Plan. Change the labels, marks and Course Outcome row if yours differ.",
-             "Then upload this file on the Templates tab of the Course Planner. The Results tab shows the distribution, and the AoL Report for this subject is built from it.",
+             "Then upload this file on the Marks & results tab of the Course Planner. The Results tab shows the distribution, and the AoL Report for this subject is built from it.",
              "The AoL Summary tab adds up the results with formulas as you enter marks.",
              "The marks for each column and the Bloom's levels are drafts for faculty to check; none comes from the handbook."]
     if code in NOTES:
         lines.append(NOTES[code])
     if sample:
-        lines.append("Sample only: all marks in this file are dummy data.")
+        lines.append(f"Sample only: all marks in this file are illustrative, standing in for the {SAMPLE_YEAR} offering.")
     for n, text in enumerate(lines, 1):
         cell = ws[f"A{n}"]
         cell.value = text

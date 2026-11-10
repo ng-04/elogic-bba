@@ -279,6 +279,7 @@ let planMarks = {}; // subject code -> { name, blob, savedAt, warnings, clos, cu
 let planOutlines = {}; // subject code -> { name, blob, version, status, ... }: outlines going through review in this browser
 let planMarksCode = '';
 let planResultsCode = '';
+let planReferences = {}; // subject code -> { name, blob, savedAt, warning }: last year's outlines to build this year's from
 let planOutlineCode = '';
 let planCoaching = null;
 const planFields = new Map();
@@ -325,7 +326,7 @@ async function loadSavedMarks() {
       if (!saved) continue;
       // Marks saved before the Results tab kept only class totals, so read those files again.
       planMarks[c['Subject Code']] = saved.clos ? saved : { ...saved, ...(await readMarks(c['Subject Code'], new File([saved.blob], saved.name))) };
-    } catch (e) { /* storage blocked: the reports keep their dummy results */ }
+    } catch (e) { /* storage blocked: the reports keep their sample results */ }
   }
 }
 
@@ -542,21 +543,48 @@ async function fillDocx(blob, fields) {
   return doc.getZip().generate({ type: 'blob', mimeType: DOCX_TYPE });
 }
 
+const SAMPLE_YEAR = '2025-26'; // the earlier offering the sample marks stand in for
+
+/** Highlights in yellow every run of a Word file whose text is one of the given passages, or part of one. */
+async function highlightText(blob, passages) {
+  const wanted = passages.filter((t) => t && t.trim().length > 3).map((t) => t.trim());
+  const PizZip = await loadPizZip();
+  const zip = new PizZip(await blob.arrayBuffer());
+  const unescape = (t) => t.replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&apos;/g, "'").replace(/&amp;/g, '&');
+  const xml = zip.file('word/document.xml').asText().replace(/<w:r(?: [^>]*)?>[\s\S]*?<\/w:r>/g, (run) => {
+    const text = unescape([...run.matchAll(/<w:t(?: [^>]*)?>([^<]*)<\/w:t>/g)].map((m) => m[1]).join('')).trim();
+    if (!text || !wanted.some((w) => w === text || text.includes(w) || (text.length >= 20 && w.includes(text))) || run.includes('<w:highlight')) return run;
+    const mark = '<w:highlight w:val="yellow"/>';
+    if (!run.includes('<w:rPr>') && !/<w:rPr\/>/.test(run)) return run.replace(/^(<w:r(?: [^>]*)?>)/, `$1<w:rPr>${mark}</w:rPr>`);
+    return run.replace(/<w:rPr\/>/, `<w:rPr>${mark}</w:rPr>`).replace(/<w:rPr>([\s\S]*?)<\/w:rPr>/, (_, inner) => {
+      // Word wants the highlight before underline, shading, vertical alignment and language.
+      const at = inner.search(/<w:(u|effect|bdr|shd|fitText|vertAlign|rtl|cs|em|lang|eastAsianLayout|specVanish|oMath)\b/);
+      return `<w:rPr>${at < 0 ? inner + mark : inner.slice(0, at) + mark + inner.slice(at)}</w:rPr>`;
+    });
+  });
+  zip.file('word/document.xml', xml);
+  return zip.generate({ type: 'blob', mimeType: DOCX_TYPE });
+}
+
 const percent = (share) => `${Math.round(share * 1000) / 10}%`;
 const cutoffRule = ({ exceed, meet }) => `Exceed Expectation is ${percent(exceed)} or more of the marks for that CLO, `
   + `Meet Expectation is ${percent(meet)} up to ${percent(exceed)}, and Does not meet Expectation is below ${percent(meet)}.`;
 
-const withMarks = (fields, marks) => ({ ...fields, results_note: `From the marks in ${marks.name}.`, results_rule: cutoffRule(marks.cutoffs || DEFAULT_CUTOFFS),
+const withMarks = (fields, marks) => ({ ...fields, results_note: marks.sample ? fields.results_note : `From the marks in ${marks.name}.`, results_rule: cutoffRule(marks.cutoffs || DEFAULT_CUTOFFS),
   clos: fields.clos.map((c, i) => ({ ...c, ...marks.results[i], ...marks.review[i] })) });
 
 // One document for a subject: built live if it has an uploaded template or marks, otherwise the reviewed file.
 async function planBlob({ code, kind, name }) {
   if (kind === 'marks' && planMarks[code]) return planMarks[code].blob;
+  if (kind === 'outline' && planReferences[code]) return rollForward(planReferences[code].blob, await subjectFields(code));
   if (kind === 'outline' && planOutlines[code]) return planOutlines[code].blob;
   const marks = kind === 'report' && planMarks[code];
   if (planCustom[kind] || marks) {
-    const fields = await subjectFields(code);
-    return fillDocx(await activeTemplate(kind), marks ? withMarks(fields, marks) : fields);
+    const fields = marks ? withMarks(await subjectFields(code), marks) : await subjectFields(code);
+    const blob = await fillDocx(await activeTemplate(kind), fields);
+    // Sample results stay highlighted until this term's marks replace them.
+    return kind === 'report' && (!marks || marks.sample)
+      ? highlightText(blob, [fields.results_note, ...fields.clos.flatMap((c) => [c.analysis, c.improvement])]) : blob;
   }
   const res = await fetch(PLAN_DIR + name);
   if (!res.ok) throw new Error(name);
@@ -607,13 +635,14 @@ function updateMarksPrompt() {
   prompt.hidden = !$('plan-marks').checked || !missing.length;
   if (prompt.hidden) return;
   const who = missing.length === 1 ? missing[0] : plural(missing.length, 'subject');
-  prompt.replaceChildren(el('p', { text: `Please upload the marks sheet for ${who} on the Marks & results tab. Until then, this download is a sample with dummy marks.` }),
+  prompt.replaceChildren(el('p', { text: `Please upload the marks sheet for ${who} on the Marks & results tab. Until then, it shows sample results from the ${SAMPLE_YEAR} offering, highlighted in yellow.` }),
     el('button', { class: 'btn btn-outline btn-sm', type: 'button', text: 'Upload marks sheet', onclick: () => openMarksTile(missing[0]) }));
 }
 
 function clearPlanResults() {
   $('plan-results').hidden = true;
   updateMarksPrompt();
+  renderReference();
   const picked = PLAN_OUTPUTS.some(([kind]) => $(`plan-${kind}`).checked);
   $('plan-generate').disabled = !picked;
 }
@@ -636,13 +665,16 @@ function generatePlan() {
       const file = { code: c['Subject Code'], kind, name };
       planFiles.push(file);
       const marks = (kind === 'report' || kind === 'marks') && planMarks[c['Subject Code']];
+      const reference = kind === 'outline' && planReferences[c['Subject Code']];
+      if (reference) return el('td', {}, el('button', { class: 'btn-link', type: 'button', onclick: () => downloadPlanFile(file) }, icon('download'), ' Download'),
+        el('small', { class: 'plan-custom', text: 'From your reference' }));
       const outline = kind === 'outline' && planOutlines[c['Subject Code']];
       if (outline) return el('td', {}, el('button', { class: 'btn-link', type: 'button', onclick: () => downloadPlanFile(file) }, icon('download'), ' Download'),
         el('small', { class: 'plan-custom', text: `Version ${outline.version}, ${OUTLINE_STATUS[outline.status].toLowerCase()}` }));
       if (!planCustom[kind] && !marks) return el('td', {}, el('a', { href: PLAN_DIR + name, download: true }, icon('download'), ' Download'),
-        kind === 'marks' ? el('small', { class: 'plan-sample', text: 'Sample, dummy marks' }) : null);
+        kind === 'marks' ? el('small', { class: 'plan-sample', text: `Sample results, ${SAMPLE_YEAR}` }) : null);
       return el('td', {}, el('button', { class: 'btn-link', type: 'button', onclick: () => downloadPlanFile(file) }, icon('download'), ' Download'),
-        el('small', { class: 'plan-custom', text: [planCustom[kind] && 'Your template', marks && 'Your marks'].filter(Boolean).join(', ') }));
+        el('small', { class: 'plan-custom', text: [planCustom[kind] && 'Your template', marks && (marks.sample ? `Sample results, ${SAMPLE_YEAR}` : 'Your marks')].filter(Boolean).join(', ') }));
     })));
   $('plan-table').replaceChildren(el('thead', {}, head), el('tbody', {}, body));
   $('plan-status').textContent = `${plural(planFiles.length, 'document')} for ${plural(rows.length, 'subject')}.`;
@@ -763,13 +795,13 @@ async function restoreTemplate(kind) {
   renderTemplates();
 }
 
-async function uploadMarks(code, file, message) {
+async function uploadMarks(code, file, message, sample = false) {
   message.textContent = 'Reading the marks…';
   message.className = 'tpl-msg';
   try {
     const { error, ...counted } = await readMarks(code, file);
     if (error) { message.textContent = error; message.className = 'tpl-msg is-error'; return; }
-    const saved = { name: file.name, blob: new Blob([file], { type: file.type }), savedAt: new Date().toISOString(), ...counted };
+    const saved = { name: file.name, blob: new Blob([file], { type: file.type }), savedAt: new Date().toISOString(), sample, ...counted };
     await templateStore('readwrite', (s) => s.put(saved, `marks:${code}`));
     planMarks[code] = saved;
     planResultsCode = code;
@@ -806,8 +838,8 @@ function marksCard() {
     el('h3', { text: 'Marks Sheet' }),
     el('p', { class: 'tpl-meta', text: 'Excel upload that feeds the AoL Report' }),
     el('label', { class: 'select tpl-select' }, el('span', { text: 'Subject' }), picker),
-    el('p', { class: 'tpl-version' }, saved ? el('strong', { text: 'Your marks: ' }) : el('strong', { text: 'No marks uploaded' }),
-      saved ? `${saved.name} (${plural(saved.students, 'student')})` : '. The report shows dummy results.'),
+    el('p', { class: 'tpl-version' }, saved ? el('strong', { text: saved.sample ? 'Sample results: ' : 'Your marks: ' }) : el('strong', { text: 'No marks uploaded' }),
+      saved ? `${saved.name} (${plural(saved.students, 'student')})` : `. The report shows sample results from ${SAMPLE_YEAR}, highlighted.`),
     (saved ? saved.warnings : []).map((text) => el('p', { class: 'tpl-msg is-warning', text })),
     message,
     el('div', { class: 'tpl-actions' },
@@ -837,12 +869,13 @@ function marksBar(code) {
     onchange: (e) => { if (e.target.files[0]) uploadMarks(code, e.target.files[0], message); e.target.value = ''; } });
   return el('section', { class: 'res-upload' },
     el('h3', { text: 'Marks sheet' }),
-    el('p', {}, saved ? el('strong', { text: `Using ${saved.name}` }) : el('strong', { text: 'No marks uploaded yet. ' }),
-      saved ? `, ${plural(saved.students, 'student')}, uploaded ${dateText(saved.savedAt)}.` : 'Download the blank, enter marks in Excel, then upload it here.'),
+    el('p', {}, saved ? el('strong', { text: saved.sample ? `Using the sample results from ${SAMPLE_YEAR}` : `Using ${saved.name}` }) : el('strong', { text: 'No marks uploaded yet. ' }),
+      saved ? `, ${plural(saved.students, 'student')}${saved.sample ? '. They stay highlighted in the AoL Report until you upload this term’s marks.' : `, uploaded ${dateText(saved.savedAt)}.`}`
+        : `The AoL Report shows sample results from the ${SAMPLE_YEAR} offering, highlighted in yellow. Download the blank, enter this term’s marks in Excel, then upload it here.`),
     el('div', { class: 'tpl-actions' },
       el('a', { class: 'btn btn-outline btn-sm', href: blankMarks(code), download: true }, icon('download'), ' Download blank'),
       el('button', { class: 'btn btn-primary btn-sm', type: 'button', id: 'res-upload', onclick: () => input.click() }, icon('upload'), saved ? ' Upload a new marks sheet' : ' Upload marks sheet'),
-      saved ? null : el('button', { class: 'btn btn-outline btn-sm', type: 'button', text: 'Try the sample marks', onclick: loadSampleMarks }),
+      saved && !saved.sample ? null : el('button', { class: 'btn btn-outline btn-sm', type: 'button', id: 'res-sample', text: saved ? 'Reload the sample results' : `Try the sample results (${SAMPLE_YEAR})`, onclick: loadSampleMarks }),
       saved ? el('button', { class: 'btn-link', type: 'button', text: 'Remove marks', onclick: async () => { await removeMarks(code); renderResults(); } }) : null),
     (saved ? saved.warnings : []).map((text) => el('p', { class: 'tpl-msg is-warning', text })),
     message, input);
@@ -854,7 +887,7 @@ async function loadSampleMarks() {
   try {
     const res = await fetch(PLAN_DIR + name);
     if (!res.ok) throw new Error(name);
-    await uploadMarks(code, new File([await res.blob()], name), $('res-message'));
+    await uploadMarks(code, new File([await res.blob()], name), $('res-message'), true);
   } catch (e) {
     $('res-message').textContent = 'The sample marks couldn’t be loaded.';
   }
@@ -1050,6 +1083,87 @@ async function downloadReport(code) {
   } catch (e) {
     $('res-status').textContent = 'The report couldn’t be built. Check your template’s marked fields, or restore the default.';
   }
+}
+
+// ------------------------------------------------------------------ reference outline: build this year's outline from last year's
+
+const yearBefore = (span) => span.replace(/^(\d{4})-(\d{2,4})$/, (_, a, b) => `${a - 1}-${String(b - 1).padStart(b.length, '0')}`);
+const escapeXml = (text) => text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+/** Turns last year's outline into this year's draft: marked fields filled, last year's batch and academic year moved on one, and the banner reset. */
+async function rollForward(blob, fields) {
+  let filled = blob;
+  try { filled = await fillDocx(blob, fields); } catch (e) { /* stray braces in the text: use it as it is */ }
+  const PizZip = await loadPizZip();
+  const zip = new PizZip(await filled.arrayBuffer());
+  const swaps = [[yearBefore(fields.batch), fields.batch], [yearBefore(fields.academic_year), fields.academic_year]].map(([from, to]) => [escapeXml(from), escapeXml(to)]);
+  const xml = zip.file('word/document.xml').asText().replace(/(<w:t(?: [^>]*)?>)([^<]*)(<\/w:t>)/g, (_, open, text, close) => {
+    let out = text.replace(/PREVIOUS VERSION[^<]*?FOR REFERENCE/, 'DRAFT FOR FACULTY REVIEW');
+    for (const [from, to] of swaps) out = out.split(from).join(to);
+    return open + out + close;
+  });
+  zip.file('word/document.xml', xml);
+  return zip.generate({ type: 'blob', mimeType: DOCX_TYPE });
+}
+
+async function loadSavedReferences() {
+  for (const c of planSubjects()) {
+    try {
+      const saved = await templateStore('readonly', (s) => s.get(`reference:${c['Subject Code']}`));
+      if (saved) planReferences[c['Subject Code']] = saved;
+    } catch (e) { /* storage blocked: the default is used */ }
+  }
+}
+
+async function uploadReference(code, file, message) {
+  message.textContent = 'Checking the file…';
+  message.className = 'tpl-msg';
+  if (file.size > TEMPLATE_LIMIT) { message.textContent = 'That file is over 10 MB.'; message.className = 'tpl-msg is-error'; return; }
+  let body;
+  try { body = await outlineBody(file); } catch (e) {
+    message.textContent = 'That file couldn’t be read as a Word document (.docx).';
+    message.className = 'tpl-msg is-error';
+    return;
+  }
+  const warning = body.textContent.includes(code) ? '' : `This file doesn’t mention ${code}. Check it is the right subject’s outline.`;
+  planReferences[code] = { name: file.name, blob: new Blob([file], { type: DOCX_TYPE }), savedAt: new Date().toISOString(), warning };
+  try { await templateStore('readwrite', (s) => s.put(planReferences[code], `reference:${code}`)); } catch (e) { /* kept for this visit */ }
+  clearPlanResults();
+}
+
+async function removeReference(code) {
+  delete planReferences[code];
+  try { await templateStore('readwrite', (s) => s.delete(`reference:${code}`)); } catch (e) { /* nothing was stored */ }
+  clearPlanResults();
+}
+
+// The reference upload beside the Generate button, for the Course Outline only.
+function renderReference() {
+  const box = $('plan-reference');
+  if (!box) return;
+  box.hidden = !$('plan-outline').checked;
+  if (box.hidden) return;
+  const code = $('plan-subject').value;
+  const message = el('p', { class: 'tpl-msg', role: 'status' });
+  if (!code) {
+    const using = pickedSubjects().map((c) => c['Subject Code']).filter((c) => planReferences[c]);
+    box.replaceChildren(el('button', { class: 'btn btn-outline btn-sm', type: 'button', id: 'plan-ref-upload', disabled: true }, icon('upload'), ' Upload reference outline'),
+      el('p', { class: 'fine', text: using.length ? `Course Outlines for ${using.join(', ')} are built from your reference documents; the rest use the default. Pick one subject to change its reference.`
+        : 'Pick one subject to build its Course Outline from your own reference document, such as last year’s outline. Otherwise the default is used.' }));
+    return;
+  }
+  const ref = planReferences[code];
+  const input = el('input', { type: 'file', accept: '.docx', hidden: true, id: 'plan-ref-file', 'aria-label': `Upload reference Course Outline for ${code}`,
+    onchange: (e) => { if (e.target.files[0]) uploadReference(code, e.target.files[0], message); e.target.value = ''; } });
+  const prev = planIndex[code] && planIndex[code].previous;
+  box.replaceChildren(
+    el('button', { class: 'btn btn-outline btn-sm', type: 'button', id: 'plan-ref-upload', onclick: () => input.click() }, icon('upload'), ref ? ' Replace reference outline' : ' Upload reference outline'),
+    ref ? el('p', { class: 'fine' }, el('strong', { text: 'Using your reference: ' }), `${ref.name}, saved ${dateText(ref.savedAt)}. The batch and academic year are moved on to this year. `,
+      el('button', { class: 'btn-link', type: 'button', id: 'plan-ref-remove', text: 'Use the default instead', onclick: () => removeReference(code) }))
+      : el('p', { class: 'fine' }, `Optional: build ${code}’s Course Outline from your own reference document, such as last year’s outline. Without one, the default is used. `,
+        prev ? el('a', { href: PLAN_DIR + prev, download: true, text: 'Last year’s outline' }) : null),
+    ...(ref && ref.warning ? [el('p', { class: 'tpl-msg is-warning', text: ref.warning })] : []),
+    message, input);
 }
 
 // ------------------------------------------------------------------ outline review: reference, reupload, approval, PDF, sharing
@@ -1359,6 +1473,7 @@ async function renderPlanner() {
   }
   await loadSavedMarks();
   await loadSavedOutlines();
+  await loadSavedReferences();
   renderTemplates();
   const rows = planSubjects();
   $('plan-program').append(el('option', { text: 'BBA' }));
@@ -1366,7 +1481,7 @@ async function renderPlanner() {
     ...[...new Set(data.curriculum.map((c) => c.Semester))].map((s) => el('option', { value: s, text: `Semester ${s}`, disabled: !rows.some((c) => c.Semester === s) })));
   fillPlanSubjects();
   $('plan-note').textContent = `${plural(rows.length, 'sample subject')} available so far, with more to come, and the rest are greyed out. `
-    + 'All documents are drafts for faculty review. AoL Reports and marks sheets show dummy marks until marks are uploaded on the Marks & results tab, where faculty also rewrite the draft in the last table of each report.';
+    + `All documents are drafts for faculty review. AoL Reports and marks sheets show sample results from the ${SAMPLE_YEAR} offering, highlighted in yellow, until this term’s marks are uploaded on the Marks & results tab, where faculty also rewrite the draft in the last table of each report.`;
   $('plan-sem').addEventListener('change', () => { fillPlanSubjects(); clearPlanResults(); });
   $('plan-subject').addEventListener('change', clearPlanResults);
   for (const [kind] of PLAN_OUTPUTS) $(`plan-${kind}`).addEventListener('change', clearPlanResults);

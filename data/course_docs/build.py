@@ -17,7 +17,7 @@ from pathlib import Path
 
 from docx import Document
 from docx.enum.table import WD_ALIGN_VERTICAL
-from docx.enum.text import WD_ALIGN_PARAGRAPH
+from docx.enum.text import WD_ALIGN_PARAGRAPH, WD_COLOR_INDEX
 from docx.oxml import OxmlElement
 from docx.opc.constants import RELATIONSHIP_TYPE
 from docx.oxml.ns import qn
@@ -515,6 +515,12 @@ def fit_table(doc, element, content):
     return table.rows[1:]
 
 
+def highlight(*paragraphs):
+    for paragraph in paragraphs:
+        for run in paragraph.runs:
+            run.font.highlight_color = WD_COLOR_INDEX.YELLOW
+
+
 def build_report(content, facts, results):
     doc = Document(REPORT_TEMPLATE)
     body = list(doc.element.body)
@@ -543,6 +549,11 @@ def build_report(content, facts, results):
     keep_together(T(22))
     note = "{results_note} {results_rule}" if blank else f"{RESULTS_NOTE} {RESULTS_RULE}"
     font(P(23).add_run(note), italic=True)
+    if not blank:  # sample results stand out until real marks replace them
+        highlight(P(23))
+        for r in T(22).rows[2:]:
+            for cell in r.cells[2:]:
+                highlight(*cell.paragraphs)
 
     # Drafted from the results, for faculty to reflect on and rewrite on the planner's Results tab.
     fit_rows(T(26), len(clos))
@@ -553,6 +564,8 @@ def build_report(content, facts, results):
         set_cell(r.cells[3], result["improvement"] + c.get("end_row", ""), left=True)
         for cell in r.cells[2:]:
             cell.paragraphs[0].paragraph_format.left_indent = cell.paragraphs[0].paragraph_format.right_indent = Cm(0.1)
+            if not blank:
+                highlight(*cell.paragraphs)
     set_widths(T(26), (810, 810, 3870, 3870))
     tidy_table(T(26), P(24))
     remove(*body[11:13], *body[16:20], body[21], body[25])
