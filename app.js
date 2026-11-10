@@ -751,7 +751,8 @@ function renderStudents() {
 // The documents are built ahead of time and reviewed; docs/course-docs/index.json lists what exists.
 const PLAN_DIR = 'docs/course-docs/';
 const PLAN_DOCS = [['outline', 'Course Outline'], ['aol', 'AoL Plan'], ['report', 'AoL Report']];
-const PLAN_OUTPUTS = [...PLAN_DOCS, ['marks', 'Marks Sheet']];
+// The order of the Generate tab's checkboxes and result columns: the marks sheet comes before the report it feeds.
+const PLAN_OUTPUTS = [PLAN_DOCS[0], PLAN_DOCS[1], ['marks', 'Marks Sheet'], PLAN_DOCS[2]];
 const PLAN_BLANKS = { outline: 'E-Logic_Course_Outline_Template.docx', aol: 'E-Logic_AoL_Plan_Template.docx', report: 'E-Logic_AoL_Report_Template.docx' };
 // A CLO's band comes from the share of its marks a student earned. These match the marks sheet's own defaults.
 const DEFAULT_CUTOFFS = { exceed: 0.75, meet: 0.5 };
