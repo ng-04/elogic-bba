@@ -1362,6 +1362,203 @@ function outlineStep(n, title, state, ...children) {
   return el('li', { class: `flow-step is-${state}` }, el('h3', {}, el('b', { text: String(n) }), title), ...children);
 }
 
+// ------------------------------------------------------------------ editing an outline's text in the page
+
+const W_NS = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main';
+const R_NS = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships';
+const isW = (node, name) => node.nodeType === 1 && node.namespaceURI === W_NS && node.localName === name;
+const wChild = (node, name) => node && [...node.childNodes].find((c) => isW(c, name));
+const wVal = (node) => node && node.getAttributeNS(W_NS, 'val');
+const isOn = (node) => !!node && !['0', 'false', 'none'].includes(wVal(node) || '');
+const SKIPPED = ['pPr', 'rPr', 'drawing', 'pict', 'AlternateContent', 'del', 'instrText', 'fldChar'];
+
+// The text of a paragraph as editable pieces: Word text, tabs and line breaks, in reading order.
+function textSegments(p) {
+  const out = [];
+  const walk = (node) => {
+    for (const child of node.childNodes) {
+      if (child.nodeType !== 1 || SKIPPED.includes(child.localName)) continue;
+      if (isW(child, 't')) out.push({ node: child, text: child.textContent });
+      else if (isW(child, 'tab')) out.push({ node: child, text: '\t' });
+      else if (isW(child, 'br') || isW(child, 'cr')) out.push({ node: child, text: '\n' });
+      else walk(child);
+    }
+  };
+  walk(p);
+  return out;
+}
+
+/** Writes new text into a Word paragraph, changing only the characters that differ so each run keeps its formatting. */
+function applyText(p, next) {
+  const segs = textSegments(p);
+  const old = segs.map((x) => x.text).join('');
+  next = next.replace(/ /g, ' ');
+  if (old === next) return false;
+  let start = 0;
+  while (start < old.length && start < next.length && old[start] === next[start]) start += 1;
+  let end = 0;
+  while (end < old.length - start && end < next.length - start && old[old.length - 1 - end] === next[next.length - 1 - end]) end += 1;
+  const delTo = old.length - end;
+  const insert = next.slice(start, next.length - end).replace(/[\t\n]/g, ' ');
+  let pos = 0;
+  for (const x of segs) { x.a = pos; pos += x.text.length; x.b = pos; }
+  const texts = segs.filter((x) => isW(x.node, 't'));
+  // New text goes into the run it was typed in, or the one it follows.
+  const target = texts.find((x) => x.a <= start && start < x.b) || [...texts].reverse().find((x) => x.b === start) || texts.find((x) => x.a >= start) || texts[texts.length - 1];
+  for (const x of segs) {
+    const cutA = Math.max(x.a, start);
+    const cutB = Math.min(x.b, delTo);
+    if (isW(x.node, 't')) {
+      const keepHead = x.text.slice(0, Math.max(0, cutA - x.a));
+      const keepTail = cutA < cutB ? x.text.slice(cutB - x.a) : x.text.slice(Math.max(0, cutA - x.a));
+      x.out = x === target ? keepHead + insert + keepTail : (cutA < cutB ? keepHead + keepTail : x.text);
+    } else if (x.a >= start && x.b <= delTo) {
+      x.node.parentNode.removeChild(x.node);
+    }
+  }
+  if (!target) {
+    if (!insert) return true;
+    const doc = p.ownerDocument;
+    const run = doc.createElementNS(W_NS, 'w:r');
+    const mark = wChild(wChild(p, 'pPr'), 'rPr');
+    if (mark) run.appendChild(mark.cloneNode(true));
+    const t = doc.createElementNS(W_NS, 'w:t');
+    t.textContent = insert;
+    t.setAttributeNS('http://www.w3.org/XML/1998/namespace', 'xml:space', 'preserve');
+    run.appendChild(t);
+    p.appendChild(run);
+    return true;
+  }
+  for (const x of texts) {
+    if (x.out === undefined || x.out === x.text) continue;
+    x.node.textContent = x.out;
+    x.node.setAttributeNS('http://www.w3.org/XML/1998/namespace', 'xml:space', 'preserve');
+  }
+  return true;
+}
+
+function wordStyles(xml) {
+  const styles = {};
+  if (!xml) return styles;
+  for (const st of new DOMParser().parseFromString(xml, 'application/xml').getElementsByTagNameNS(W_NS, 'style')) {
+    const pPr = wChild(st, 'pPr');
+    const rPr = wChild(st, 'rPr');
+    styles[st.getAttributeNS(W_NS, 'styleId')] = { jc: wVal(wChild(pPr, 'jc')), b: rPr && wChild(rPr, 'b') ? isOn(wChild(rPr, 'b')) : undefined,
+      sz: wVal(wChild(rPr, 'sz')) };
+  }
+  return styles;
+}
+
+/** Opens a Word file as editable HTML: one editable block per paragraph, laid out as in Word. */
+async function openDocEditor(blob) {
+  const PizZip = await loadPizZip();
+  const zip = new PizZip(await blob.arrayBuffer());
+  const xml = new DOMParser().parseFromString(zip.file('word/document.xml').asText(), 'application/xml');
+  const styles = wordStyles(zip.file('word/styles.xml') && zip.file('word/styles.xml').asText());
+  const rels = {};
+  const relXml = zip.file('word/_rels/document.xml.rels');
+  if (relXml) for (const r of new DOMParser().parseFromString(relXml.asText(), 'application/xml').getElementsByTagName('Relationship')) rels[r.getAttribute('Id')] = r.getAttribute('Target');
+  const paragraphs = [];
+
+  const image = (p) => {
+    const blip = p.getElementsByTagNameNS('http://schemas.openxmlformats.org/drawingml/2006/main', 'blip')[0];
+    const target = blip && rels[blip.getAttributeNS(R_NS, 'embed')];
+    const file = target && zip.file(`word/${target.replace(/^\/?word\//, '')}`);
+    return file ? el('img', { src: URL.createObjectURL(new Blob([file.asUint8Array()])), alt: '' }) : null;
+  };
+  const paragraph = (p) => {
+    const pPr = wChild(p, 'pPr');
+    const style = styles[wVal(wChild(pPr, 'pStyle'))] || {};
+    const jc = wVal(wChild(pPr, 'jc')) || style.jc;
+    const runs = [];
+    const walk = (node) => {
+      for (const child of node.childNodes) {
+        if (child.nodeType !== 1 || ['pPr', 'del'].includes(child.localName)) continue;
+        if (!isW(child, 'r')) { walk(child); continue; }
+        const rPr = wChild(child, 'rPr');
+        const bold = rPr && wChild(rPr, 'b') ? isOn(wChild(rPr, 'b')) : style.b;
+        const size = Number(wVal(wChild(rPr, 'sz')) || style.sz || 22) / 2;
+        const text = textSegments(child).map((x) => x.text).join('');
+        if (!text) continue;
+        runs.push(el('span', { text, style: [bold ? 'font-weight:700' : '', rPr && isOn(wChild(rPr, 'i')) ? 'font-style:italic' : '',
+          rPr && wChild(rPr, 'u') && isOn(wChild(rPr, 'u')) ? 'text-decoration:underline' : '', size !== 11 ? `font-size:${size}pt` : ''].filter(Boolean).join(';') || null }));
+      }
+    };
+    walk(p);
+    const original = textSegments(p).map((x) => x.text).join('');
+    const block = el('p', { class: ['doc-p', pPr && wChild(pPr, 'numPr') ? 'doc-li' : ''].filter(Boolean).join(' '),
+      style: jc ? `text-align:${{ both: 'justify', center: 'center', right: 'right', end: 'right' }[jc] || 'left'}` : null,
+      contenteditable: 'plaintext-only', spellcheck: 'true' }, runs);
+    paragraphs.push({ node: p, block, original });
+    const picture = p.getElementsByTagNameNS(W_NS, 'drawing')[0] && image(p);
+    return picture ? [el('div', { class: 'doc-img' }, picture), original ? block : null] : block;
+  };
+  const blocks = (parent) => [...parent.childNodes].flatMap((child) => {
+    if (isW(child, 'p')) return paragraph(child);
+    if (isW(child, 'tbl')) {
+      return el('table', {}, [...child.childNodes].filter((r) => isW(r, 'tr')).map((r) => el('tr', {},
+        [...r.childNodes].filter((c) => isW(c, 'tc')).map((c) => {
+          const span = wVal(wChild(wChild(c, 'tcPr'), 'gridSpan'));
+          return el('td', { colspan: span || null }, blocks(c));
+        }))));
+    }
+    if (child.nodeType === 1 && ['sdt', 'sdtContent', 'customXml', 'smartTag'].includes(child.localName)) return blocks(child);
+    return [];
+  });
+
+  const view = el('div', { class: 'doc-edit' }, blocks(xml.getElementsByTagNameNS(W_NS, 'body')[0]));
+  const count = el('span', { class: 'fine', role: 'status', text: 'No changes yet.' });
+  const changed = () => paragraphs.filter((x) => x.block.textContent !== x.original);
+  view.addEventListener('keydown', (e) => { if (e.key === 'Enter') e.preventDefault(); }); // one Word paragraph per block
+  view.addEventListener('paste', (e) => {
+    e.preventDefault();
+    document.execCommand('insertText', false, (e.clipboardData.getData('text/plain') || '').replace(/\s*\n\s*/g, ' '));
+  });
+  view.addEventListener('input', (e) => {
+    const hit = paragraphs.find((x) => x.block === e.target.closest('.doc-p'));
+    if (hit) hit.block.classList.toggle('is-changed', hit.block.textContent !== hit.original);
+    const n = changed().length;
+    count.textContent = n ? `${plural(n, 'paragraph')} changed.` : 'No changes yet.';
+  });
+  const save = () => {
+    const edits = changed();
+    for (const x of edits) applyText(x.node, x.block.textContent);
+    zip.file('word/document.xml', `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\r\n${new XMLSerializer().serializeToString(xml.documentElement)}`);
+    return { count: edits.length, blob: zip.generate({ type: 'blob', mimeType: DOCX_TYPE, compression: 'DEFLATE' }) };
+  };
+  return { view, count, changed, save };
+}
+
+async function editOutline(code, holder, message) {
+  const record = planOutlines[code];
+  message.textContent = 'Opening the editor…';
+  message.className = 'tpl-msg';
+  let editor;
+  try { editor = await openDocEditor(record.blob); } catch (e) {
+    message.textContent = 'This file couldn’t be opened for editing here. Please edit it in Word and upload it.';
+    message.className = 'tpl-msg is-error';
+    return;
+  }
+  message.textContent = '';
+  const saveEdits = async () => {
+    if (!editor.changed().length) { message.textContent = 'Nothing has changed yet.'; message.className = 'tpl-msg'; return; }
+    const { blob } = editor.save();
+    await setOutline(code, record.name, blob, message);
+  };
+  holder.replaceChildren(
+    el('p', { class: 'fine', text: 'Click any text to change it; the Word formatting is kept. Rows and pictures can’t be added or removed here, so do that in Word and upload the file.' }),
+    editor.view,
+    el('div', { class: 'tpl-actions' },
+      el('button', { class: 'btn btn-primary btn-sm', type: 'button', id: 'flow-save-edits', text: 'Save as a new version', onclick: saveEdits }),
+      el('button', { class: 'btn btn-outline btn-sm', type: 'button', id: 'flow-cancel-edits', text: 'Cancel', onclick: () => {
+        if (editor.changed().length && !confirm('Discard your changes?')) return;
+        renderOutline();
+      } }),
+      editor.count),
+    message);
+  editor.view.querySelector('.doc-p')?.focus();
+}
+
 async function renderOutline() {
   const subjects = planSubjects();
   if (!subjects.length) return;
@@ -1388,6 +1585,19 @@ async function renderOutline() {
     subjects.map((c) => el('option', { value: c['Subject Code'], text: `${c['Subject Code']} ${c.Subject}` })));
   picker.value = code;
   const frame = el('iframe', { class: 'tpl-frame flow-frame', title: `${code} outline as it will appear`, sandbox: '' });
+  const editMessage = el('p', { class: 'tpl-msg', role: 'status' });
+  const checkHolder = el('div', { class: 'flow-check' });
+  const editable = status === 'draft' || status === 'changes';
+  if (record) {
+    checkHolder.append(
+      el('p', { class: 'fine', text: editable ? 'This is the text of your Word file, shown in its final type. Edit the text here, or fix it in Word and upload it again.'
+        : 'This is the text of your Word file, shown in its final type. Editing it starts a new version, which has to be approved again.' }),
+      frame,
+      el('div', { class: 'tpl-actions' },
+        editable ? el('button', { class: 'btn btn-primary btn-sm', type: 'button', id: 'flow-submit', text: 'Submit for approval', onclick: () => decideOutline(code, { status: 'submitted', submittedAt: new Date().toISOString() }) }) : null,
+        el('button', { class: 'btn btn-outline btn-sm', type: 'button', id: 'flow-edit', text: 'Edit text', onclick: () => editOutline(code, checkHolder, editMessage) })),
+      editMessage);
+  }
   const approver = el('input', { type: 'text', id: 'flow-approver', value: fields.endorser, 'aria-label': 'Approver’s name' });
   const comment = el('textarea', { id: 'flow-comment', rows: 2, 'aria-label': 'Comment for the faculty member', placeholder: 'Comment for the faculty member' });
   const decision = (changes) => {
@@ -1410,10 +1620,7 @@ async function renderOutline() {
           record ? null : el('button', { class: 'btn btn-outline btn-sm', type: 'button', id: 'flow-draft', text: `Use the ${fields.academic_year} draft instead`, onclick: useDraft })),
         message, input),
       outlineStep(3, 'Check what goes into the document', !record ? 'todo' : status === 'draft' || status === 'changes' ? 'active' : 'done',
-        record ? el('p', { class: 'fine', text: 'This is the text of your Word file, shown in its final type. Fix anything in Word and upload it again.' }) : el('p', { class: 'fine', text: 'Your outline appears here after you upload it.' }),
-        record ? frame : null,
-        status === 'draft' || status === 'changes' ? el('div', { class: 'tpl-actions' },
-          el('button', { class: 'btn btn-primary btn-sm', type: 'button', id: 'flow-submit', text: 'Submit for approval', onclick: () => decideOutline(code, { status: 'submitted', submittedAt: new Date().toISOString() }) })) : null),
+        !record ? el('p', { class: 'fine', text: 'Your outline appears here after you upload it.' }) : checkHolder),
       outlineStep(4, 'Approval', !record || status === 'draft' ? 'todo' : status === 'approved' ? 'done' : 'active',
         el('p', {}, el('strong', { text: record ? `${OUTLINE_STATUS[status]}. ` : '' }), `Approver: ${fields.endorser}, ${fields.endorser_role}.`),
         status === 'changes' ? el('p', { class: 'tpl-msg is-warning', text: `${record.reviewedBy}: ${record.comment || 'Please revise and upload a new version.'}` }) : null,

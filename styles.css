@@ -543,6 +543,20 @@ select option:disabled { color: #9aa0ab; }
 .flow-step h3 { display: flex; align-items: center; gap: 10px; margin: 0 0 8px; font-size: 18px; }
 .flow-step h3 b { display: inline-grid; place-items: center; width: 26px; height: 26px; border-radius: 50%; background: var(--navy); color: #fff; font-size: 13px; }
 .flow-step p { margin: 0 0 8px; }
+.doc-edit { height: 520px; overflow: auto; margin-bottom: 10px; padding: 28px; border: 1px solid var(--line); border-radius: 8px; background: #fff; color: #111;
+  font: 11pt/1.35 "Times New Roman", Times, serif; white-space: pre-wrap; tab-size: 6; }
+.doc-edit .doc-p { margin: 0 0 6px; min-height: 1.35em; padding: 1px 3px; border-radius: 3px; outline: none; cursor: text; }
+.doc-edit .doc-p:hover { background: #f3f6fb; }
+.doc-edit .doc-p:focus { background: #fff8e6; box-shadow: 0 0 0 2px #e35a1b; }
+.doc-edit .doc-p.is-changed { background: #fff3c4; }
+.doc-edit .doc-li { padding-left: 18px; position: relative; }
+.doc-edit .doc-li::before { content: "•"; position: absolute; left: 4px; }
+.doc-edit table { border-collapse: collapse; width: 100%; margin: 6px 0 12px; }
+.doc-edit td { border: 1px solid #888; padding: 4px 6px; vertical-align: top; }
+.doc-edit td .doc-p { margin: 0; }
+.doc-edit .doc-img { text-align: center; margin-bottom: 8px; }
+.doc-edit .doc-img img { max-width: 220px; }
+@media (max-width: 760px) { .doc-edit { height: 420px; padding: 14px; } }
 .flow-frame { width: 100%; height: 520px; margin-bottom: 10px; border: 1px solid var(--line); border-radius: 8px; background: #fff; }
 .flow-form { display: grid; gap: 8px; max-width: 520px; }
 .flow-form input, .flow-form textarea, .res-field textarea { width: 100%; padding: 8px 10px; font: inherit; color: var(--ink); background: var(--bg); border: 1px solid var(--gray-300); border-radius: 8px; }
