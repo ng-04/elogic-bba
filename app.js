@@ -1124,22 +1124,33 @@ function openMarksTile(code) {
   location.hash = 'planner/results';
 }
 
+// While "Upload Marks Sheet" is ticked, names the semester and each selected subject still without marks,
+// and keeps Generate documents greyed out until they are uploaded.
 function updateMarksPrompt() {
-  const missing = pickedSubjects().map((c) => c['Subject Code']).filter((code) => !planMarks[code]);
+  const missing = pickedSubjects().filter((c) => !planMarks[c['Subject Code']]);
   const prompt = $('plan-marks-prompt');
   prompt.hidden = !$('plan-marks').checked || !missing.length;
-  if (prompt.hidden) return;
-  const who = missing.length === 1 ? missing[0] : plural(missing.length, 'subject');
-  prompt.replaceChildren(el('p', { text: `Please upload the marks sheet for ${who} on the Marks & results tab. Until then, it shows sample results from the ${SAMPLE_YEAR} offering, highlighted in yellow.` }),
-    el('button', { class: 'btn btn-outline btn-sm', type: 'button', text: 'Upload marks sheet', onclick: () => openMarksTile(missing[0]) }));
+  if (prompt.hidden) return [];
+  const semester = $('plan-sem').selectedOptions[0]?.text || 'All semesters';
+  const chip = (text) => el('mark', { class: 'plan-pick', text });
+  prompt.replaceChildren(
+    el('p', {}, 'Please upload the marks sheet for ', chip(semester), ' ',
+      ...missing.flatMap((c, i) => [i ? (i === missing.length - 1 ? ' and ' : ', ') : '', chip(`${c['Subject Code']} ${c.Subject}`)]),
+      ` on the Marks & results tab. Generate documents is available once ${missing.length === 1 ? 'it is' : 'they are'} uploaded, or untick Upload Marks Sheet. `
+      + `Until then, the AoL Report shows sample results from the ${SAMPLE_YEAR} offering, highlighted in yellow.`),
+    el('div', { class: 'plan-prompt-actions' }, missing.map((c) => el('button', { class: 'btn btn-outline btn-sm', type: 'button',
+      text: missing.length === 1 ? 'Upload marks sheet' : `Upload for ${c['Subject Code']}`, onclick: () => openMarksTile(c['Subject Code']) }))));
+  return missing;
 }
 
 function clearPlanResults() {
   $('plan-results').hidden = true;
-  updateMarksPrompt();
+  const missing = updateMarksPrompt();
   renderReference();
   const picked = PLAN_OUTPUTS.some(([kind]) => $(`plan-${kind}`).checked);
-  $('plan-generate').disabled = !picked;
+  const blocked = $('plan-marks').checked && missing.length > 0;
+  $('plan-generate').disabled = !picked || blocked;
+  $('plan-generate').title = blocked ? 'Upload the marks sheet first, or untick Upload Marks Sheet' : '';
 }
 
 function generatePlan() {
