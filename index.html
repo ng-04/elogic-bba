@@ -297,22 +297,29 @@
 
 <section class="view" data-view="scheduling" hidden>
   <div class="page-hero" style="--img:url('https://images.unsplash.com/photo-1427504494785-3a9ca7044f45?w=1800&q=70&auto=format&fit=crop')">
-    <div class="wrap"><p class="crumbs"><a href="#ask">E-Logic</a> / Scheduling</p><h1>Class Scheduling &amp; Allocation</h1><p>Timetables, rooms and faculty allocation for every section. Coming soon: this page gives an overview of the plan.</p></div>
+    <div class="wrap"><p class="crumbs"><a href="#ask">E-Logic</a> / Scheduling</p><h1>Class Scheduling &amp; Allocation</h1><p>Allocate a professor to every section within each professor’s teaching-hour band, with the rules and the goal you set.</p></div>
   </div>
   <div class="wrap page-body">
-    <p class="kicker">This term</p><h2 class="title title-sm">What has to be scheduled</h2>
-    <p class="fine" id="sch-note"></p>
-    <div class="kpis" id="sch-kpis"></div>
-    <p class="kicker">Overview</p><h2 class="title title-sm">What this tab will do</h2>
-    <div class="cards-3">
-      <article class="feature feature-line"><h3>Faculty allocation</h3><p>Assign a professor to each section from the Faculty Utilization sheet, and flag anyone above their goal of faculty credit hours.</p></article>
-      <article class="feature feature-line"><h3>Timetable</h3><p>Place each section's sessions across the week, so that no batch, section or professor has two classes at once.</p></article>
-      <article class="feature feature-line"><h3>Rooms</h3><p>Match each class to a room that fits it: classrooms for core sections, labs for analytics workshops, studios for design work.</p></article>
-      <article class="feature feature-line"><h3>Electives</h3><p>Keep elective sessions apart from the core subjects of the same batch, so every student can attend all four Year 4 electives.</p></article>
-      <article class="feature feature-line"><h3>Calendar</h3><p>Respect the academic calendar: mid-terms, the Deepavali break, Parent-Teacher Meetings and end-terms.</p></article>
-      <article class="feature feature-line"><h3>Changes</h3><p>Reschedule a missed class, swap a professor, and publish timetables for students, faculty and parents.</p></article>
+    <div class="seg plan-tabs" role="tablist" aria-label="Scheduling">
+      <button role="tab" type="button" id="sch-tab-alloc" aria-selected="true">Faculty allocation</button>
+      <button role="tab" type="button" id="sch-tab-overview" aria-selected="false">Overview</button>
     </div>
-    <p class="fine">Not built yet: nothing here can be edited, and the figures above come from the master data.</p>
+    <div id="sch-panel-alloc"></div>
+    <div id="sch-panel-overview" hidden>
+      <p class="kicker">This term</p><h2 class="title title-sm">What has to be scheduled</h2>
+      <p class="fine" id="sch-note"></p>
+      <div class="kpis" id="sch-kpis"></div>
+      <p class="kicker">Overview</p><h2 class="title title-sm">What this tab does, and will do</h2>
+      <div class="cards-3">
+        <article class="feature feature-line"><h3>Faculty allocation <small class="tag tag-core">Live</small></h3><p>Assign a professor to each section within their band of teaching hours, using the rules and objective you set. Try it on the Faculty allocation tab.</p></article>
+        <article class="feature feature-line"><h3>Timetable</h3><p>Place each section's sessions across the week, so that no batch, section or professor has two classes at once.</p></article>
+        <article class="feature feature-line"><h3>Rooms</h3><p>Match each class to a room that fits it: classrooms for core sections, labs for analytics workshops, studios for design work.</p></article>
+        <article class="feature feature-line"><h3>Electives</h3><p>Keep elective sessions apart from the core subjects of the same batch, so every student can attend all four Year 4 electives.</p></article>
+        <article class="feature feature-line"><h3>Calendar</h3><p>Respect the academic calendar: mid-terms, the Deepavali break, Parent-Teacher Meetings and end-terms.</p></article>
+        <article class="feature feature-line"><h3>Changes</h3><p>Reschedule a missed class, swap a professor, and publish timetables for students, faculty and parents.</p></article>
+      </div>
+      <p class="fine">Timetable, rooms, electives, calendar and changes are still to come. The figures above come from the master data.</p>
+    </div>
   </div>
 </section>
 

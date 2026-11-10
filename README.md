@@ -23,7 +23,17 @@ pages are:
   suggestions for the report's Analysis of Result and Improvement Plan (`data/course_docs/coaching.json`).
   The site has no server or sign-in, so all of this stays in one browser and approval isn't proof of
   who approved.
-- **Scheduling**: an overview of class scheduling and allocation, with this term's sections, sessions and faculty from the master data. The tool itself is still to come.
+- **Scheduling**: the **Faculty allocation** solver assigns a professor to each of the year's 117 sections
+  (from Faculty Utilization) so that teaching hours stay within each professor's band. The objective
+  (hours under and over the band, the largest single gap, sections moved, cross-area teaching, extra
+  professors per subject) has switchable weights; the constraints (one professor per section, sections per
+  term, area eligibility with "also teaches" exceptions, locks, bars, availability, an optional hard cap,
+  annual or per-term bands) can all be changed on the page. Inputs come from the master data or from an
+  uploaded input workbook (downloadable pre-filled); results download as a workbook in the Faculty
+  Utilization layout with a load summary, course summary and solver report, and the model downloads in
+  LP format for an exact solver. The solver is `lib/allocation.js`: a seeded search, so results repeat.
+  Bands, availability and "also teaches" areas are dummy data in `data/generate.py` (`allocation` in
+  `site-data.json`). The **Overview** tab outlines timetabling, rooms and the rest, still to come.
 
 Every name, number and date here is made up.
 

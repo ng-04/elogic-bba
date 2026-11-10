@@ -1139,6 +1139,34 @@ doc.build(story)
 
 # ------------------------------------------------------------------ site data
 
+# Faculty allocation inputs for the Scheduling page's solver. Dummy data: the bands follow common practice of
+# lighter teaching for academic leaders, and "also teaches" lists areas next to each professor's specialism.
+ALLOCATION_BANDS = [("Dean", 60, 90), ("Assistant Dean", 60, 90), ("Chair", 120, 150), ("Faculty", 150, 180), ("Visiting", 0, 90)]
+ALSO_TEACHES = {
+    "F002": ["Economics"], "F004": ["Finance & Accounting"], "F006": ["Information Systems"], "F008": ["Analytics"],
+    "F010": ["HR & OB"], "F011": ["HR & OB"], "F012": ["Marketing"], "F013": ["Economics", "Information Systems"],
+    "F016": ["Marketing"], "F018": ["Economics", "Marketing"], "F019": ["Strategy", "Economics"], "F020": ["Analytics"],
+    "F021": ["Economics", "Social Science", "HR & OB"], "F022": ["Social Science"], "F023": ["Analytics"], "F024": ["Economics"],
+    "F025": ["Strategy", "Economics"], "F026": ["Strategy"], "F027": ["Information Systems"], "F028": ["Information Systems", "Strategy"],
+}
+
+
+def allocation_band(designation, role):
+    if role.startswith("Dean"):
+        return "Dean"
+    if role.startswith("Programme Director"):
+        return "Assistant Dean"
+    if role != "-":
+        return "Chair"  # coordinators and the Controller of Examinations
+    return "Visiting" if designation == "Visiting Faculty" else "Faculty"
+
+
+allocation = {
+    "bands": [{"band": b, "min": lo, "max": hi} for b, lo, hi in ALLOCATION_BANDS],
+    "faculty": [{"id": f[0], "band": allocation_band(f[2], f[6] or "-"), "alsoTeaches": ALSO_TEACHES.get(f[0], []),
+                 "available": True, "minSections": "", "maxSections": "", "minHours": "", "maxHours": ""} for f in FACULTY],
+}
+
 site = {
     "school": SCHOOL, "academicYear": AY, "totalCredits": TOTAL_CREDITS,
     "curriculum": curriculum_rows,
@@ -1154,6 +1182,7 @@ site = {
                     "fchPerCredit": FCH_PER_CREDIT, "facultyGoal": FACULTY_GOAL},
     "facultyUtilization": utilization_rows,
     "year4Electives": year4_rows,
+    "allocation": allocation,
     "students": student_rows,
     "files": [{"name": HANDBOOK.name, "path": f"docs/{HANDBOOK.name}", "title": "BBA Student Handbook 2026-27",
                "description": f"{PAGES} pages: overview, pedagogy, subjects, assessment, outcomes, calendar, contacts."},

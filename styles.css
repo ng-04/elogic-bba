@@ -616,3 +616,50 @@ select option:disabled { color: #9aa0ab; }
 .res-chip { padding: 6px 10px; text-align: left; font: inherit; font-size: 14px; color: var(--ink); background: var(--bg-alt); border: 1px solid var(--line); border-radius: 8px; cursor: pointer; }
 .res-chip:hover { border-color: var(--orange); }
 @media (max-width: 760px) { .res-split { grid-template-columns: 1fr; } .flow-frame { height: 420px; } }
+
+/* ---------------------------------------------------------------- faculty allocation solver */
+.alloc-card { border: 1px solid var(--line); border-radius: var(--radius); background: var(--card); padding: 18px 20px; margin: 0 0 18px; min-width: 0; }
+.alloc-card h3 { font: 700 17px Montserrat, sans-serif; color: var(--heading); margin: 0 0 6px; }
+.alloc-card > .fine { margin: 0 0 12px; }
+.alloc-split { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; align-items: start; }
+.alloc-split > .alloc-card { margin-bottom: 18px; }
+.alloc-details summary { cursor: pointer; list-style: none; display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 14px; }
+.alloc-details summary::-webkit-details-marker { display: none; }
+.alloc-details summary h3 { margin: 0; }
+.alloc-details summary h3::before { content: "▸"; display: inline-block; width: 18px; color: var(--orange); transition: transform .15s; }
+.alloc-details[open] summary h3::before { transform: rotate(90deg); }
+.alloc-details[open] summary { margin-bottom: 14px; }
+.alloc-table td { vertical-align: middle; }
+.alloc-wrap td:nth-child(2), .alloc-wrap td:first-child { white-space: normal; min-width: 0; }
+.alloc-wrap { min-width: 0; }
+.alloc-num { width: 82px; font: inherit; font-size: 14px; padding: 5px 8px; border: 1px solid var(--gray-300); border-radius: 8px; background: var(--bg); color: var(--ink); }
+.alloc-text { width: 220px; font: inherit; font-size: 14px; padding: 5px 8px; border: 1px solid var(--gray-300); border-radius: 8px; background: var(--bg); color: var(--ink); }
+.alloc-table select, .alloc-rules select { font: inherit; font-size: 14px; padding: 5px 8px; border: 1px solid var(--gray-300); border-radius: 8px; background: var(--bg); color: var(--ink); }
+.alloc-rules { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; font-size: 15px; }
+.alloc-rules .alloc-sub { padding-left: 26px; }
+.alloc-check { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
+.alloc-formula { margin: 12px 0 0; padding: 10px 12px; border-radius: 8px; background: var(--bg-alt); font: 600 14px/1.5 Montserrat, sans-serif; color: var(--heading); }
+.alloc-scroll { max-height: 460px; }
+.alloc-run { display: flex; flex-wrap: wrap; align-items: center; gap: 14px; margin: 6px 0 16px; }
+.alloc-table tr.is-changed td { background: var(--orange-soft); }
+.alloc-loads { display: grid; gap: 6px; max-height: 620px; overflow: auto; padding-right: 4px; }
+.alloc-load { display: grid; grid-template-columns: minmax(0, 190px) 1fr 104px; gap: 10px; align-items: center; font-size: 13px; }
+.alloc-load-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.alloc-load-num { text-align: right; font-variant-numeric: tabular-nums; color: var(--muted); }
+.alloc-track { position: relative; height: 16px; border-radius: 4px; background: var(--bg-alt); }
+.alloc-zone { position: absolute; top: 0; bottom: 0; background: rgba(12, 163, 12, .16); border-left: 1px solid rgba(12, 163, 12, .5); border-right: 1px solid rgba(12, 163, 12, .5); }
+.alloc-bar { position: absolute; left: 0; top: 4px; height: 8px; border-radius: 4px; }
+.alloc-bar.is-within, .alloc-key.is-within { background: #0ca30c; }
+.alloc-bar.is-under, .alloc-key.is-under { background: #fab219; }
+.alloc-bar.is-over, .alloc-key.is-over { background: #d03b3b; }
+.alloc-was { position: absolute; top: -2px; bottom: -2px; width: 2px; margin-left: -1px; background: var(--heading); }
+.alloc-legend { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
+.alloc-key { display: inline-block; width: 14px; height: 10px; border-radius: 3px; margin-left: 8px; position: static; }
+.alloc-key.alloc-zone { position: static; }
+.alloc-key-was { width: 3px; height: 14px; background: var(--heading); }
+@media (max-width: 900px) { .alloc-split { grid-template-columns: 1fr; } }
+@media (max-width: 560px) {
+  .alloc-load { grid-template-columns: 1fr 86px; }
+  .alloc-load .alloc-track { grid-column: 1 / -1; grid-row: 2; }
+  .alloc-card { padding: 14px; }
+}

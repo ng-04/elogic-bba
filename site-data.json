@@ -5028,6 +5028,364 @@
    "Enrolled": 18
   }
  ],
+ "allocation": {
+  "bands": [
+   {
+    "band": "Dean",
+    "min": 60,
+    "max": 90
+   },
+   {
+    "band": "Assistant Dean",
+    "min": 60,
+    "max": 90
+   },
+   {
+    "band": "Chair",
+    "min": 120,
+    "max": 150
+   },
+   {
+    "band": "Faculty",
+    "min": 150,
+    "max": 180
+   },
+   {
+    "band": "Visiting",
+    "min": 0,
+    "max": 90
+   }
+  ],
+  "faculty": [
+   {
+    "id": "F001",
+    "band": "Dean",
+    "alsoTeaches": [],
+    "available": true,
+    "minSections": "",
+    "maxSections": "",
+    "minHours": "",
+    "maxHours": ""
+   },
+   {
+    "id": "F002",
+    "band": "Assistant Dean",
+    "alsoTeaches": [
+     "Economics"
+    ],
+    "available": true,
+    "minSections": "",
+    "maxSections": "",
+    "minHours": "",
+    "maxHours": ""
+   },
+   {
+    "id": "F003",
+    "band": "Faculty",
+    "alsoTeaches": [],
+    "available": true,
+    "minSections": "",
+    "maxSections": "",
+    "minHours": "",
+    "maxHours": ""
+   },
+   {
+    "id": "F004",
+    "band": "Faculty",
+    "alsoTeaches": [
+     "Finance & Accounting"
+    ],
+    "available": true,
+    "minSections": "",
+    "maxSections": "",
+    "minHours": "",
+    "maxHours": ""
+   },
+   {
+    "id": "F005",
+    "band": "Chair",
+    "alsoTeaches": [],
+    "available": true,
+    "minSections": "",
+    "maxSections": "",
+    "minHours": "",
+    "maxHours": ""
+   },
+   {
+    "id": "F006",
+    "band": "Faculty",
+    "alsoTeaches": [
+     "Information Systems"
+    ],
+    "available": true,
+    "minSections": "",
+    "maxSections": "",
+    "minHours": "",
+    "maxHours": ""
+   },
+   {
+    "id": "F007",
+    "band": "Chair",
+    "alsoTeaches": [],
+    "available": true,
+    "minSections": "",
+    "maxSections": "",
+    "minHours": "",
+    "maxHours": ""
+   },
+   {
+    "id": "F008",
+    "band": "Faculty",
+    "alsoTeaches": [
+     "Analytics"
+    ],
+    "available": true,
+    "minSections": "",
+    "maxSections": "",
+    "minHours": "",
+    "maxHours": ""
+   },
+   {
+    "id": "F009",
+    "band": "Chair",
+    "alsoTeaches": [],
+    "available": true,
+    "minSections": "",
+    "maxSections": "",
+    "minHours": "",
+    "maxHours": ""
+   },
+   {
+    "id": "F010",
+    "band": "Visiting",
+    "alsoTeaches": [
+     "HR & OB"
+    ],
+    "available": true,
+    "minSections": "",
+    "maxSections": "",
+    "minHours": "",
+    "maxHours": ""
+   },
+   {
+    "id": "F011",
+    "band": "Chair",
+    "alsoTeaches": [
+     "HR & OB"
+    ],
+    "available": true,
+    "minSections": "",
+    "maxSections": "",
+    "minHours": "",
+    "maxHours": ""
+   },
+   {
+    "id": "F012",
+    "band": "Chair",
+    "alsoTeaches": [
+     "Marketing"
+    ],
+    "available": true,
+    "minSections": "",
+    "maxSections": "",
+    "minHours": "",
+    "maxHours": ""
+   },
+   {
+    "id": "F013",
+    "band": "Faculty",
+    "alsoTeaches": [
+     "Economics",
+     "Information Systems"
+    ],
+    "available": true,
+    "minSections": "",
+    "maxSections": "",
+    "minHours": "",
+    "maxHours": ""
+   },
+   {
+    "id": "F014",
+    "band": "Chair",
+    "alsoTeaches": [],
+    "available": true,
+    "minSections": "",
+    "maxSections": "",
+    "minHours": "",
+    "maxHours": ""
+   },
+   {
+    "id": "F015",
+    "band": "Visiting",
+    "alsoTeaches": [],
+    "available": true,
+    "minSections": "",
+    "maxSections": "",
+    "minHours": "",
+    "maxHours": ""
+   },
+   {
+    "id": "F016",
+    "band": "Faculty",
+    "alsoTeaches": [
+     "Marketing"
+    ],
+    "available": true,
+    "minSections": "",
+    "maxSections": "",
+    "minHours": "",
+    "maxHours": ""
+   },
+   {
+    "id": "F017",
+    "band": "Faculty",
+    "alsoTeaches": [],
+    "available": true,
+    "minSections": "",
+    "maxSections": "",
+    "minHours": "",
+    "maxHours": ""
+   },
+   {
+    "id": "F018",
+    "band": "Faculty",
+    "alsoTeaches": [
+     "Economics",
+     "Marketing"
+    ],
+    "available": true,
+    "minSections": "",
+    "maxSections": "",
+    "minHours": "",
+    "maxHours": ""
+   },
+   {
+    "id": "F019",
+    "band": "Faculty",
+    "alsoTeaches": [
+     "Strategy",
+     "Economics"
+    ],
+    "available": true,
+    "minSections": "",
+    "maxSections": "",
+    "minHours": "",
+    "maxHours": ""
+   },
+   {
+    "id": "F020",
+    "band": "Visiting",
+    "alsoTeaches": [
+     "Analytics"
+    ],
+    "available": true,
+    "minSections": "",
+    "maxSections": "",
+    "minHours": "",
+    "maxHours": ""
+   },
+   {
+    "id": "F021",
+    "band": "Faculty",
+    "alsoTeaches": [
+     "Economics",
+     "Social Science",
+     "HR & OB"
+    ],
+    "available": true,
+    "minSections": "",
+    "maxSections": "",
+    "minHours": "",
+    "maxHours": ""
+   },
+   {
+    "id": "F022",
+    "band": "Chair",
+    "alsoTeaches": [
+     "Social Science"
+    ],
+    "available": true,
+    "minSections": "",
+    "maxSections": "",
+    "minHours": "",
+    "maxHours": ""
+   },
+   {
+    "id": "F023",
+    "band": "Faculty",
+    "alsoTeaches": [
+     "Analytics"
+    ],
+    "available": true,
+    "minSections": "",
+    "maxSections": "",
+    "minHours": "",
+    "maxHours": ""
+   },
+   {
+    "id": "F024",
+    "band": "Faculty",
+    "alsoTeaches": [
+     "Economics"
+    ],
+    "available": true,
+    "minSections": "",
+    "maxSections": "",
+    "minHours": "",
+    "maxHours": ""
+   },
+   {
+    "id": "F025",
+    "band": "Faculty",
+    "alsoTeaches": [
+     "Strategy",
+     "Economics"
+    ],
+    "available": true,
+    "minSections": "",
+    "maxSections": "",
+    "minHours": "",
+    "maxHours": ""
+   },
+   {
+    "id": "F026",
+    "band": "Faculty",
+    "alsoTeaches": [
+     "Strategy"
+    ],
+    "available": true,
+    "minSections": "",
+    "maxSections": "",
+    "minHours": "",
+    "maxHours": ""
+   },
+   {
+    "id": "F027",
+    "band": "Faculty",
+    "alsoTeaches": [
+     "Information Systems"
+    ],
+    "available": true,
+    "minSections": "",
+    "maxSections": "",
+    "minHours": "",
+    "maxHours": ""
+   },
+   {
+    "id": "F028",
+    "band": "Faculty",
+    "alsoTeaches": [
+     "Information Systems",
+     "Strategy"
+    ],
+    "available": true,
+    "minSections": "",
+    "maxSections": "",
+    "minHours": "",
+    "maxHours": ""
+   }
+  ]
+ },
  "students": [
   {
    "Student ID": "EL24BBA001",
