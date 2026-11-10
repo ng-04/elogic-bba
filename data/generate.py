@@ -1074,7 +1074,7 @@ story += [
            ["PO3", "<b>Decision Making.</b> Objective: To be able to arrive at a decision using suitable decision-making tools."],
            ["PO4", "<b>Communication.</b> Objective: To demonstrate effective business communication skills."],
            ["PO5", "<b>Ethics.</b> Objective: To demonstrate understanding of ethical considerations in a given context."],
-           ["PO6*", "<b>Leadership*.</b> Objective: Demonstrate ability to take leadership roles in business situations."]],
+           ["PO6", "<b>Leadership.</b> Objective: Demonstrate ability to take leadership roles in business situations."]],
           [14 * mm, CONTENT_W - 14 * mm]),
     Spacer(1, 6),
     P("Programme-specific outcomes by specialisation", h2),

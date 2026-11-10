@@ -65,7 +65,6 @@ PLG_OBJECTIVES = {
     5: "To demonstrate understanding of ethical considerations in a given context.",
     6: "Demonstrate ability to take leadership roles in business situations.",
 }
-STARRED = {6}  # marked with an asterisk in the school's table
 # Handbook, Assessment page: the final evaluation for each assessment type, as (name, weightage, minutes).
 # Workshops are 100% continuous, so they have none.
 END_TERM = {"Exam": ("End-Term", 60, "180"), "Workshop": None, "Project": ("Final Report and Viva", 50, None),
@@ -431,10 +430,9 @@ def build_outline(content, facts, previous=False):
         set_cell(cell, text, bold=True)
         cell.paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.CENTER
     for r, plg in zip(T(44).rows[1:], PLGS):
-        star = "*" if plg in STARRED else ""
-        set_cell(r.cells[0], f"PO{plg}{star}", bold=True)
+        set_cell(r.cells[0], f"PO{plg}", bold=True)
         r.cells[0].paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.CENTER
-        outcome_cell(r.cells[1], PLGS[plg] + star, PLG_OBJECTIVES[plg])
+        outcome_cell(r.cells[1], PLGS[plg], PLG_OBJECTIVES[plg])
         if blank:
             addressed, clos = f"{{plg{plg}_addressed}}", f"{{plg{plg}_clos}}"
         else:
