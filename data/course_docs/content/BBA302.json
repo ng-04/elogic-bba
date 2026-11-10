@@ -20,7 +20,7 @@
     },
     {
       "text": "Evaluate long-term investment proposals using capital budgeting techniques, supported by spreadsheet analysis, and recommend a decision.",
-      "plg": 2,
+      "plg": 3,
       "mode": "End-Term Examination: capital budgeting problem (Quiz 2 as a supporting measure)",
       "rubric": {
         "exceed": "Identifies all relevant cash flows, applies NPV, IRR and related measures correctly, tests key assumptions, and justifies a clear recommendation.",
@@ -30,7 +30,7 @@
     },
     {
       "text": "Assess how cost of capital, leverage, capital structure and dividend decisions interact to affect firm value under changing market conditions.",
-      "plg": 3,
+      "plg": 2,
       "mode": "End-Term Examination: integrative case-based question",
       "rubric": {
         "exceed": "Links financing, dividend and investment decisions, assesses the impact of market conditions on each, and critically weighs alternatives.",

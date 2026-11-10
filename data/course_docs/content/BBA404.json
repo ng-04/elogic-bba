@@ -20,7 +20,7 @@
     },
     {
       "text": "Identify a real customer problem and validate a solution using primary research and data.",
-      "plg": 2,
+      "plg": 3,
       "mode": "Milestone Reviews: evidence from customer interviews and MVP tests (Mentor Assessment as a supporting measure)",
       "rubric": {
         "exceed": "Gathers strong evidence from real customers, changes direction when the data demands it, and shows a validated solution.",
@@ -30,7 +30,7 @@
     },
     {
       "text": "Build an integrated venture plan that links market, operations, finance and the external environment.",
-      "plg": 3,
+      "plg": 2,
       "mode": "Final Report and Viva: written venture plan",
       "rubric": {
         "exceed": "All parts of the plan fit together, financial projections follow from stated assumptions, and external risks are critically assessed.",

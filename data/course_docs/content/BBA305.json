@@ -20,7 +20,7 @@
     },
     {
       "text": "Identify a business problem and use regression or forecasting techniques to suggest a data-based solution.",
-      "plg": 2,
+      "plg": 3,
       "mode": "Studio and Lab Exercises: regression and forecasting lab submissions",
       "rubric": {
         "exceed": "Frames the problem precisely, selects and tests a suitable model, compares alternatives, and proposes a well-justified solution.",
@@ -30,7 +30,7 @@
     },
     {
       "text": "Critically evaluate analytical results, their limits and their impact across business functions.",
-      "plg": 3,
+      "plg": 2,
       "mode": "Final Showcase: evaluation of results and limitations (peer review as a supporting measure)",
       "rubric": {
         "exceed": "Tests the results for weaknesses, explains the limits of the data, and traces the impact across several business functions.",

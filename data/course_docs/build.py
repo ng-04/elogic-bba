@@ -48,14 +48,24 @@ HEADING_SIZE, BODY_SIZE = 14, 11
 NAVY, ORANGE = (0x16, 0x23, 0x3F), (0xE3, 0x5A, 0x1B)
 FONTS = Path("/mnt/c/Windows/Fonts")
 
+# The programme's six outcomes (PO = PLG), fixed by the school: never add or rename one.
 PLGS = {
-    1: "Understanding and Application of Fundamentals",
-    2: "Problem Identification and Solution",
-    3: "Integrative and Critical Thinking",
-    4: "Effective Communication",
-    5: "Ethical Responsibility",
+    1: "Applied Knowledge",
+    2: "Analytical Thinking",
+    3: "Decision Making",
+    4: "Communication",
+    5: "Ethics",
     6: "Leadership",
 }
+PLG_OBJECTIVES = {
+    1: "To be able to apply concepts to real-world situations.",
+    2: "To be able to critically assess situations by integrating learning from various domains.",
+    3: "To be able to arrive at a decision using suitable decision-making tools.",
+    4: "To demonstrate effective business communication skills.",
+    5: "To demonstrate understanding of ethical considerations in a given context.",
+    6: "Demonstrate ability to take leadership roles in business situations.",
+}
+STARRED = {6}  # marked with an asterisk in the school's table
 # Handbook, Assessment page: the final evaluation for each assessment type, as (name, weightage, minutes).
 # Workshops are 100% continuous, so they have none.
 END_TERM = {"Exam": ("End-Term", 60, "180"), "Workshop": None, "Project": ("Final Report and Viva", 50, None),
@@ -414,18 +424,32 @@ def build_outline(content, facts, previous=False):
     P(31).paragraph_format.keep_with_next = True
     P(36).paragraph_format.keep_with_next = True
 
-    # PLG mapping
+    # PO and PLG mapping, in the school's fixed table
     mapped = plg_map(content)
+    set_text(P(42), "PO AND PLG MAPPING FOR THE COURSE")
+    for cell, text in zip(T(44).rows[0].cells, ("PO#", "Program Outcomes", "Addressed by Course? (Yes / No)", "CLO No.")):
+        set_cell(cell, text, bold=True)
+        cell.paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.CENTER
     for r, plg in zip(T(44).rows[1:], PLGS):
+        star = "*" if plg in STARRED else ""
+        set_cell(r.cells[0], f"PO{plg}{star}", bold=True)
+        r.cells[0].paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.CENTER
+        outcome_cell(r.cells[1], PLGS[plg] + star, PLG_OBJECTIVES[plg])
         if blank:
-            set_cell(r.cells[2], f"{{plg{plg}_addressed}}")
-            set_cell(r.cells[3], f"{{plg{plg}_clos}}")
-            continue
-        set_cell(r.cells[2], "Yes" if plg in mapped else "No")
-        set_cell(r.cells[3], clo_list(mapped[plg]) if plg in mapped else "-")
+            addressed, clos = f"{{plg{plg}_addressed}}", f"{{plg{plg}_clos}}"
+        else:
+            addressed, clos = ("Yes", clo_list(mapped[plg])) if plg in mapped else ("No", "No")
+        for cell, text in ((r.cells[2], addressed), (r.cells[3], clos)):
+            set_cell(cell, text, bold=True)
+            cell.paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.CENTER
+            cell.vertical_alignment = WD_ALIGN_VERTICAL.CENTER
+        r.cells[0].vertical_alignment = r.cells[1].vertical_alignment = WD_ALIGN_VERTICAL.CENTER
+        for height in r._tr.trPr.findall(qn("w:trHeight")) if r._tr.trPr is not None else []:
+            r._tr.trPr.remove(height)  # the old wording set some rows taller than the new needs
 
     # The template's blank lines would push the two side-by-side sign-off boxes onto a page of their own.
     tidy_table(T(44), P(42))
+    keep_together(T(44))
     P(43).paragraph_format.keep_with_next = True
     remove(*body[39:42], *body[46:51])
 
@@ -586,6 +610,20 @@ def textbook_line(book):
     return f"{book} (latest edition; to be confirmed by faculty)"
 
 
+def outcome_cell(cell, title, objective):
+    """A PO's name in bold, then its objective, the label underlined in italics."""
+    set_cell(cell, title, bold=True, left=True)
+    paragraph = cell.add_paragraph()
+    paragraph.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
+    paragraph.paragraph_format.space_before = Pt(6)
+    for p in cell.paragraphs:
+        p.paragraph_format.left_indent = p.paragraph_format.right_indent = Cm(0.15)
+        p.paragraph_format.space_after = Pt(2)
+    label = font(paragraph.add_run("Objective:"), italic=True, bold=False)
+    label.underline = True
+    font(paragraph.add_run(f" {objective}"), bold=False)
+
+
 def plg_map(content):
     mapped = {}
     for n, c in enumerate(content["clos"], 1):
@@ -657,7 +695,7 @@ def subject_fields(code):
                       end_term_mode="-", end_term_clos="-")
     for plg in PLGS:
         fields[f"plg{plg}_addressed"] = "Yes" if plg in mapped else "No"
-        fields[f"plg{plg}_clos"] = clo_list(mapped[plg]) if plg in mapped else "-"
+        fields[f"plg{plg}_clos"] = clo_list(mapped[plg]) if plg in mapped else "No"
     return fields
 
 
