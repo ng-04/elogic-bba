@@ -194,14 +194,14 @@
   {
    "no": "18-20",
    "topic": "Cost of capital: cost of debt, cost of equity, WACC",
-   "pedagogy": "Lecture, Student workouts",
-   "reading": "Chandra: cost of capital"
+   "pedagogy": "Lecture, Student workouts, Case discussion",
+   "reading": "Chandra: cost of capital\nCase: “Marriott Corporation: The Cost of Capital (Abridged)”, Richard S. Ruback (Harvard Business School case)"
   },
   {
    "no": "21-27",
    "topic": "Capital budgeting: estimating project cash flows, payback, NPV, IRR, profitability index, sensitivity and scenario analysis",
    "pedagogy": "Lecture, Excel practice, Case discussion",
-   "reading": "Chandra: capital budgeting; Pandey: capital budgeting decisions"
+   "reading": "Chandra: capital budgeting; Pandey: capital budgeting decisions\nCase: “New Heritage Doll Company: Capital Budgeting”, Timothy A. Luehrman and Heide Abelli (Harvard Business School case)"
   },
   {
    "no": "28-29",
@@ -225,7 +225,7 @@
    "no": "34-38",
    "topic": "Working capital management: operating cycle, cash, receivables, inventory, short-term financing",
    "pedagogy": "Lecture, Case discussion",
-   "reading": "Chandra: working capital; annual reports"
+   "reading": "Chandra: working capital; annual reports\nCase: “Butler Lumber Company”, Thomas R. Piper (Harvard Business School case)"
   },
   {
    "no": "39-40",

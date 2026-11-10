@@ -162,8 +162,8 @@
   {
    "no": "3-8",
    "topic": "Excel for analysis: cleaning data, lookups, pivot tables, summary statistics, dashboards",
-   "pedagogy": "Lab, Student workouts",
-   "reading": "Albright and Winston: describing data"
+   "pedagogy": "Lab, Student workouts, Case discussion",
+   "reading": "Albright and Winston: describing data\nCase: “Pilgrim Bank (A): Customer Profitability”, Frances X. Frei and Dennis Campbell (Harvard Business School case)"
   },
   {
    "no": "9-14",
@@ -180,14 +180,14 @@
   {
    "no": "19-23",
    "topic": "Regression and forecasting: simple and multiple regression, trend and seasonality, testing a forecast",
-   "pedagogy": "Lecture, Lab",
-   "reading": "Albright and Winston: regression; time series"
+   "pedagogy": "Lecture, Lab, Case discussion",
+   "reading": "Albright and Winston: regression; time series\nCase: “Sport Obermeyer Ltd.”, Janice H. Hammond and Ananth Raman (Harvard Business School case)"
   },
   {
    "no": "24-26",
    "topic": "Analytics across business functions: marketing, finance and operations examples, limits of analysis, data privacy",
-   "pedagogy": "Discussion, Lab",
-   "reading": "Provost and Fawcett: selected readings"
+   "pedagogy": "Discussion, Lab, Case discussion",
+   "reading": "Provost and Fawcett: selected readings\nCase: “Predicting Consumer Tastes with Big Data at Gap”, Ayelet Israeli and Jill Avery (Harvard Business School case)"
   },
   {
    "no": "27-28",

@@ -72,12 +72,12 @@
     ["10", "Review and Quiz 1", "Individual assessment", "-"],
     ["11-14", "Risk and return: measuring return and risk, diversification, introduction to CAPM", "Lecture, Discussion", "Chandra: risk and return"],
     ["15-17", "Valuation of bonds and equity shares", "Lecture, Excel practice", "Chandra: valuation of bonds and stocks"],
-    ["18-20", "Cost of capital: cost of debt, cost of equity, WACC", "Lecture, Student workouts", "Chandra: cost of capital"],
-    ["21-27", "Capital budgeting: estimating project cash flows, payback, NPV, IRR, profitability index, sensitivity and scenario analysis", "Lecture, Excel practice, Case discussion", "Chandra: capital budgeting; Pandey: capital budgeting decisions"],
+    ["18-20", "Cost of capital: cost of debt, cost of equity, WACC", "Lecture, Student workouts, Case discussion", "Chandra: cost of capital\nCase: “Marriott Corporation: The Cost of Capital (Abridged)”, Richard S. Ruback (Harvard Business School case)"],
+    ["21-27", "Capital budgeting: estimating project cash flows, payback, NPV, IRR, profitability index, sensitivity and scenario analysis", "Lecture, Excel practice, Case discussion", "Chandra: capital budgeting; Pandey: capital budgeting decisions\nCase: “New Heritage Doll Company: Capital Budgeting”, Timothy A. Luehrman and Heide Abelli (Harvard Business School case)"],
     ["28-29", "Operating and financial leverage, EBIT-EPS analysis", "Lecture, Student workouts", "Chandra: leverage"],
     ["30", "Review and Quiz 2", "Individual assessment", "-"],
     ["31-33", "Capital structure and dividend decisions", "Lecture, Discussion", "Chandra: capital structure; dividend policy"],
-    ["34-38", "Working capital management: operating cycle, cash, receivables, inventory, short-term financing", "Lecture, Case discussion", "Chandra: working capital; annual reports"],
+    ["34-38", "Working capital management: operating cycle, cash, receivables, inventory, short-term financing", "Lecture, Case discussion", "Chandra: working capital; annual reports\nCase: “Butler Lumber Company”, Thomas R. Piper (Harvard Business School case)"],
     ["39-40", "Integrative review: linking investment, financing and working capital decisions", "Discussion, Student workouts", "-"]
   ]
 }

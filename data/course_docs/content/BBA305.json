@@ -67,11 +67,11 @@
   },
   "sessions": [
     ["1-2", "Introduction to business analytics: types of business data, the analytics process, setting up Excel and Jupyter", "Lecture, Lab", "Albright and Winston: introduction to business analytics"],
-    ["3-8", "Excel for analysis: cleaning data, lookups, pivot tables, summary statistics, dashboards", "Lab, Student workouts", "Albright and Winston: describing data"],
+    ["3-8", "Excel for analysis: cleaning data, lookups, pivot tables, summary statistics, dashboards", "Lab, Student workouts, Case discussion", "Albright and Winston: describing data\nCase: “Pilgrim Bank (A): Customer Profitability”, Frances X. Frei and Dennis Campbell (Harvard Business School case)"],
     ["9-14", "Python for analysis: Python basics, loading, cleaning and summarising data with pandas", "Lab, Student workouts", "McKinney: Python basics; pandas"],
     ["15-18", "Data visualisation in Excel and Python: choosing the right chart, avoiding misleading charts", "Lab, Peer critique", "McKinney: plotting and visualisation"],
-    ["19-23", "Regression and forecasting: simple and multiple regression, trend and seasonality, testing a forecast", "Lecture, Lab", "Albright and Winston: regression; time series"],
-    ["24-26", "Analytics across business functions: marketing, finance and operations examples, limits of analysis, data privacy", "Discussion, Lab", "Provost and Fawcett: selected readings"],
+    ["19-23", "Regression and forecasting: simple and multiple regression, trend and seasonality, testing a forecast", "Lecture, Lab, Case discussion", "Albright and Winston: regression; time series\nCase: “Sport Obermeyer Ltd.”, Janice H. Hammond and Ananth Raman (Harvard Business School case)"],
+    ["24-26", "Analytics across business functions: marketing, finance and operations examples, limits of analysis, data privacy", "Discussion, Lab, Case discussion", "Provost and Fawcett: selected readings\nCase: “Predicting Consumer Tastes with Big Data at Gap”, Ayelet Israeli and Jill Avery (Harvard Business School case)"],
     ["27-28", "Showcase clinic: team analysis review and peer review", "Studio, Peer review", "-"],
     ["29-30", "Final showcase: team presentations to a jury", "Group assessment", "-"]
   ]
