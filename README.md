@@ -27,7 +27,7 @@ pages are:
   (from Faculty Utilization) so that teaching hours stay within each professor's band. The objective
   (hours under and over the band, the largest single gap, sections moved, cross-area teaching, extra
   professors per subject) has switchable weights; the constraints (one professor per section, sections per
-  term, area eligibility with "also teaches" exceptions, locks, exclusions, availability, an optional hard cap,
+  term, area eligibility with "also teaches" exceptions, must-teach choices, exclusions, availability, an optional hard cap,
   annual or per-term bands) can all be changed on the page. Inputs come from the master data or from an
   uploaded input workbook (downloadable pre-filled); results download as a workbook in the Faculty
   Utilization layout with a load summary, course summary and solver report, and the model downloads in

@@ -290,7 +290,7 @@ function constraintsCard() {
         ' and at most ', numInput(c.maxSections, (v) => set('maxSections', v === '' ? 3 : v), { min: 1, max: 10, id: 'alloc-max-sec', 'aria-label': 'Maximum sections per term' })),
       el('li', {}, check('areaRule', 'Professors teach only in their own area', 'alloc-area')),
       el('li', { class: 'alloc-sub' }, check('exceptions', '… or in the areas listed as “also teaches”', 'alloc-exceptions')),
-      el('li', {}, check('locks', 'Keep locked sections with their professor', 'alloc-locks')),
+      el('li', {}, check('locks', 'Give each section to the professor who must teach it', 'alloc-locks')),
       el('li', {}, check('bars', 'Keep excluded professors off a section', 'alloc-bars')),
       el('li', {}, check('availability', 'Give no sections to professors marked unavailable', 'alloc-avail')),
       el('li', {}, check('hardCap', 'Hard cap: no one more than', 'alloc-cap'), ' ', numInput(c.capHours, (v) => set('capHours', v === '' ? 0 : v), { min: 0, step: 15, id: 'alloc-cap-hours', 'aria-label': 'Hours above the maximum' }), ' hours above their maximum')));
@@ -357,7 +357,7 @@ function sectionsCard() {
       el('td', {}, el('strong', { text: `${s.code} ${s.section}` })),
       el('td', { text: s.subject }), el('td', { text: s.term }), el('td', { text: s.area }), el('td', { class: 'num', text: String(s.hours) }),
       el('td', { text: s.current || '-' }),
-      el('td', {}, el('select', { 'aria-label': `Lock ${s.label}`, class: 'alloc-lock', onchange: (e) => { s.locked = e.target.value; allocChanged(); } },
+      el('td', {}, el('select', { 'aria-label': `Who must teach ${s.label}`, class: 'alloc-lock', onchange: (e) => { s.locked = e.target.value; allocChanged(); } },
         el('option', { value: '', text: '-' }), faculty.map((f) => el('option', { value: f.id, text: `${f.id} ${f.area === s.area ? '' : '(other area)'}`.trim(), selected: s.locked === f.id })))),
       el('td', {}, el('input', { type: 'text', class: 'alloc-text', value: (s.barred || []).join(', '), placeholder: 'e.g. F003', 'aria-label': `Exclude professors from ${s.label}`,
         onchange: (e) => { s.barred = e.target.value.split(',').map((t) => t.trim().toUpperCase()).filter((t) => faculty.some((f) => f.id === t)); e.target.value = s.barred.join(', '); allocChanged(); } })))));
@@ -366,10 +366,10 @@ function sectionsCard() {
   const filter = (label, key, values) => el('label', { class: 'select' }, el('span', { text: label }),
     el('select', { onchange: (e) => { allocState[key] = e.target.value; paint(); } }, el('option', { value: '', text: 'All' }), values.map((v) => el('option', { value: v, text: v, selected: allocState[key] === v }))));
   return el('details', { class: 'alloc-card alloc-details' },
-    el('summary', {}, el('h3', { text: 'Sections' }), el('span', { class: 'fine', text: 'Lock a section to a professor, or exclude professors from it.' })),
+    el('summary', {}, el('h3', { text: 'Sections' }), el('span', { class: 'fine', text: 'Choose who must teach a section, or exclude professors from it.' })),
     el('div', { class: 'toolbar' }, filter('Term', 'term', terms), filter('Area', 'area', areas)),
     el('div', { class: 'table-card table-scroll alloc-scroll' }, el('table', { class: 'dt dt-compact alloc-table', id: 'alloc-sections' },
-      el('thead', {}, el('tr', {}, ['Section', 'Subject', 'Term', 'Area', 'Hours', 'Current', 'Lock to', 'Exclude'].map((h) => el('th', { text: h })))), body)));
+      el('thead', {}, el('tr', {}, ['Section', 'Subject', 'Term', 'Area', 'Hours', 'Current', 'Must teach', 'Exclude'].map((h) => el('th', { text: h })))), body)));
 }
 
 function runAllocation() {
@@ -423,7 +423,7 @@ function paintAllocResults() {
     el('td', {}, el('strong', { text: `${s.code} ${s.section}` })), el('td', { text: s.subject }), el('td', { text: s.term }), el('td', { text: s.area }),
     el('td', { class: 'num', text: String(s.hours) }), el('td', { text: s.current || '-' }),
     el('td', {}, el('strong', { text: now }), ` ${facultyLabel(now)}`),
-    el('td', { text: [now !== s.current ? 'Moved' : '', allocState.constraints.locks && s.locked ? 'Locked' : '', input.faculty.find((f) => f.id === now)?.area !== s.area ? 'Other area' : ''].filter(Boolean).join(', ') }))));
+    el('td', { text: [now !== s.current ? 'Moved' : '', allocState.constraints.locks && s.locked ? 'Must teach' : '', input.faculty.find((f) => f.id === now)?.area !== s.area ? 'Other area' : ''].filter(Boolean).join(', ') }))));
   paintRows();
   box.replaceChildren(
     el('p', { class: 'kicker', text: 'Result' }), el('h2', { class: 'title title-sm', text: 'The allocation' }),
@@ -472,7 +472,7 @@ function xlSheet(book, name, headers, rows, editable = [], widths = []) {
   return ws;
 }
 
-const SECTION_COLS = ['Term', 'Semester', 'Batch', 'Subject Code', 'Subject', 'Subject Area', 'Type', 'Section', 'Students', 'Credits', 'Faculty Credit Hours', 'Current Faculty ID', 'Locked Faculty ID', 'Excluded Faculty IDs'];
+const SECTION_COLS = ['Term', 'Semester', 'Batch', 'Subject Code', 'Subject', 'Subject Area', 'Type', 'Section', 'Students', 'Credits', 'Faculty Credit Hours', 'Current Faculty ID', 'Must Teach Faculty ID', 'Excluded Faculty IDs'];
 const FACULTY_COLS = ['Faculty ID', 'Prof Name', 'Designation', 'Area', 'Administrative Role', 'Load Band', 'Min Hours', 'Max Hours', 'Min Sections per Term', 'Max Sections per Term', 'Available (Y/N)', 'Also Teaches Areas'];
 
 async function downloadAllocInput() {
@@ -483,16 +483,16 @@ async function downloadAllocInput() {
   const readme = book.addWorksheet('Read me');
   [['E-Logic faculty allocation: input workbook'], [''],
     ['Edit the yellow cells, save, and upload this file on the Scheduling page’s Faculty allocation tab.'],
-    ['Sections: one row per section. Locked Faculty ID keeps a section with that professor; Excluded Faculty IDs (comma-separated) keeps them off it.'],
+    ['Sections: one row per section. Must Teach Faculty ID gives the section to that professor; Excluded Faculty IDs (comma-separated) keeps them off it.'],
     ['Faculty: Load Band must match a band on the Load Bands sheet. Blank Min/Max Hours use the band; blank section limits use the Settings.'],
     ['Also Teaches Areas: comma-separated subject areas a professor may teach besides their own.'],
     ['Load Bands: teaching hours (faculty credit hours) for each band, per academic year.'],
     ['Settings: the constraint switches. Use Y or N, Annual or Term, and numbers.'],
-    ['Example: a Sections row with Locked Faculty ID F001 makes the Dean teach that section whatever the solver prefers.']]
+    ['Example: a Sections row with Must Teach Faculty ID F001 makes the Dean teach that section whatever the solver prefers.']]
     .forEach((r, i) => { const row = readme.addRow(r); row.font = { ...XL_FONT, bold: i === 0, size: i === 0 ? 14 : 11 }; });
   readme.getColumn(1).width = 120;
   xlSheet(book, 'Sections', SECTION_COLS, input.sections.map((s) => [s.term, s.semester, s.batch, s.code, s.subject, s.area, s.type, s.section, s.students, s.credits, s.hours, s.current, s.locked || '', (s.barred || []).join(', ')]),
-    ['Locked Faculty ID', 'Excluded Faculty IDs']);
+    ['Must Teach Faculty ID', 'Excluded Faculty IDs']);
   xlSheet(book, 'Faculty', FACULTY_COLS, input.faculty.map((f) => [f.id, f.name, f.designation || '', f.area, f.role || '-', f.band, f.minHours ?? '', f.maxHours ?? '', f.minSections ?? '', f.maxSections ?? '', f.available === false ? 'N' : 'Y', (f.alsoTeaches || []).join(', ')]),
     ['Load Band', 'Min Hours', 'Max Hours', 'Min Sections per Term', 'Max Sections per Term', 'Available (Y/N)', 'Also Teaches Areas'], [10, 32, 22, 20, 30]);
   xlSheet(book, 'Load Bands', ['Band', 'Min Hours', 'Max Hours'], input.bands.map((b) => [b.band, b.min, b.max]), ['Min Hours', 'Max Hours']);
@@ -503,7 +503,7 @@ async function downloadAllocInput() {
     ['Max sections per term', constraints.maxSections, 'Default for every professor'],
     ['Own area only', yn(constraints.areaRule), 'Professors teach only in their own area'],
     ['Allow also-teaches areas', yn(constraints.exceptions), 'Also allow the areas on the Faculty sheet'],
-    ['Respect locks', yn(constraints.locks), ''], ['Respect exclusions', yn(constraints.bars), ''], ['Respect availability', yn(constraints.availability), ''],
+    ['Respect must teach', yn(constraints.locks), ''], ['Respect exclusions', yn(constraints.bars), ''], ['Respect availability', yn(constraints.availability), ''],
     ['Hard cap', yn(constraints.hardCap), 'Never above the maximum by more than the cap hours'], ['Cap hours', constraints.capHours, '']], ['Value'], [26, 12, 70]);
   saveBlob(new Blob([await book.xlsx.writeBuffer()], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }), `E-Logic_Allocation_Input_${data.academicYear}.xlsx`);
 }
@@ -519,7 +519,7 @@ async function uploadAllocInput(file) {
     const table = (name, need) => {
       const ws = book.getWorksheet(name);
       if (!ws) throw new Error(`The workbook has no ${name} sheet.`);
-      const heads = ws.getRow(1).values.slice(1).map((v) => String(v ?? '').trim()).map((h) => (h === 'Barred Faculty IDs' ? 'Excluded Faculty IDs' : h));
+      const heads = ws.getRow(1).values.slice(1).map((v) => String(v ?? '').trim()).map((h) => ({ 'Barred Faculty IDs': 'Excluded Faculty IDs', 'Locked Faculty ID': 'Must Teach Faculty ID' }[h] || h));
       const missing = need.filter((h) => !heads.includes(h));
       if (missing.length) throw new Error(`The ${name} sheet is missing: ${missing.join(', ')}.`);
       const out = [];
@@ -542,7 +542,7 @@ async function uploadAllocInput(file) {
     const sections = table('Sections', SECTION_COLS).map((r, i) => {
       const s = { term: String(r.Term).trim(), semester: Number(r.Semester), batch: String(r.Batch), code: String(r['Subject Code']).trim(), subject: String(r.Subject), area: String(r['Subject Area']).trim(),
         type: String(r.Type), section: String(r.Section).trim(), students: Number(r.Students) || 0, credits: Number(r.Credits) || 0, hours: Number(r['Faculty Credit Hours']),
-        current: String(r['Current Faculty ID'] || '').trim(), locked: String(r['Locked Faculty ID'] || '').trim().toUpperCase(), barred: list(r['Excluded Faculty IDs']).map((t) => t.toUpperCase()) };
+        current: String(r['Current Faculty ID'] || '').trim(), locked: String(r['Must Teach Faculty ID'] || '').trim().toUpperCase(), barred: list(r['Excluded Faculty IDs']).map((t) => t.toUpperCase()) };
       s.label = `${s.code} ${s.section} (${s.term})`;
       if (!Number.isFinite(s.hours) || s.hours <= 0) problems.push(`Sections row ${i + 2}: Faculty Credit Hours must be a positive number`);
       if (s.locked && !ids.has(s.locked)) problems.push(`${s.label}: locked to unknown ${s.locked}`);
@@ -557,7 +557,7 @@ async function uploadAllocInput(file) {
     const num = (k, d) => (settings[k] === undefined || settings[k] === '' || Number.isNaN(Number(settings[k])) ? d : Number(settings[k]));
     const c = allocState.constraints;
     allocState.constraints = { ...c, basis: /^t/i.test(String(settings['Hours basis'] || '')) ? 'term' : 'annual', minSections: num('Min sections per term', c.minSections), maxSections: num('Max sections per term', c.maxSections),
-      areaRule: yes('Own area only', c.areaRule), exceptions: yes('Allow also-teaches areas', c.exceptions), locks: yes('Respect locks', c.locks), bars: yes('Respect exclusions', yes('Respect bars', c.bars)),
+      areaRule: yes('Own area only', c.areaRule), exceptions: yes('Allow also-teaches areas', c.exceptions), locks: yes('Respect must teach', yes('Respect locks', c.locks)), bars: yes('Respect exclusions', yes('Respect bars', c.bars)),
       availability: yes('Respect availability', c.availability), hardCap: yes('Hard cap', c.hardCap), capHours: num('Cap hours', c.capHours) };
     allocState.input = { source: `Uploaded ${file.name}`, sections, faculty, bands };
     allocState.result = null;
@@ -579,7 +579,7 @@ async function downloadAllocResult() {
   book.creator = 'E-Logic School of Business';
   const name = (id) => facultyLabel(id);
   const cols = ['Academic Year', 'Term', 'Semester', 'Batch', 'Subject Code', 'Subject', 'Subject Area', 'Type', 'Faculty ID', 'Prof Name', 'Section', 'Number of Sections', 'Students', 'Credits',
-    'Number of Sessions', 'Minutes per Session', 'Total Minutes Taught', 'Hours Taught', 'Faculty Credit Hours', 'Status', 'Previous Faculty ID', 'Changed', 'Locked'];
+    'Number of Sessions', 'Minutes per Session', 'Total Minutes Taught', 'Hours Taught', 'Faculty Credit Hours', 'Status', 'Previous Faculty ID', 'Changed', 'Must Teach'];
   const rows = input.sections.map((s, i) => {
     const r = s.row || {};
     const id = result.assignment[i];
@@ -628,7 +628,7 @@ async function downloadAllocResult() {
     ['Hours basis', '', constraints.basis === 'term' ? 'Each term, half the band' : 'Academic year', ''],
     ['Sections per professor per term', '', `${constraints.minSections} to ${constraints.maxSections}`, 'Unless a professor has their own limits'],
     ['Own area only', '', constraints.areaRule ? (constraints.exceptions ? 'Yes, plus also-teaches areas' : 'Yes') : 'No', ''],
-    ['Locks, exclusions, availability', '', [constraints.locks && 'locks', constraints.bars && 'exclusions', constraints.availability && 'availability'].filter(Boolean).join(', ') || 'none', ''],
+    ['Must teach, exclusions, availability', '', [constraints.locks && 'must teach', constraints.bars && 'exclusions', constraints.availability && 'availability'].filter(Boolean).join(', ') || 'none', ''],
     ['Hard cap', '', constraints.hardCap ? `${constraints.capHours} hours above the maximum` : 'Off', ''],
   ], [], [36, 18, 26, 70]);
   saveBlob(new Blob([await book.xlsx.writeBuffer()], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }), `E-Logic_Allocation_${data.academicYear}_${new Date().toISOString().slice(0, 10)}.xlsx`);
@@ -1428,6 +1428,28 @@ function resultsTable(marks) {
     el('tbody', {}, rows));
 }
 
+// Students in each band across the CLOs, as the sliders now stand, and the change from the marks sheet's cut-offs.
+function bandSummary(marks) {
+  const sheet = marks.sheetCutoffs || marks.cutoffs;
+  const moved = sheet.exceed !== marks.cutoffs.exceed || sheet.meet !== marks.cutoffs.meet;
+  const clos = marks.clos.map((clo, i) => ({ i, clo })).filter(({ clo }) => clo.scores.length);
+  const now = clos.map(({ clo }) => countBands(clo, marks.cutoffs));
+  const was = clos.map(({ clo }) => countBands(clo, sheet));
+  const cell = (n, before, all) => el('td', { class: 'num' }, el('strong', { text: String(n) }),
+    moved && n !== before ? el('span', { class: `res-delta ${n > before ? 'is-up' : 'is-down'}`, text: ` ${n > before ? '+' : '−'}${Math.abs(n - before)}` }) : null,
+    all ? el('span', { class: 'fine', text: ` (${percent(n / all)})` }) : null);
+  const total = (rows, band) => rows.reduce((t, r) => t + r[band], 0);
+  const assessed = now.reduce((t, r) => t + r.exceed + r.meet + r.below, 0);
+  return el('table', { class: 'dt dt-compact res-overall', id: 'res-overall' },
+    el('thead', {}, el('tr', {}, ['Band', ...clos.map(({ i }) => `CLO${i + 1}`), 'All CLOs'].map((text) => el('th', { text })))),
+    el('tbody', {}, ['exceed', 'meet', 'below'].map((band) => el('tr', {},
+      el('td', {}, el('i', { class: `res-key res-${band}` }), ` ${BAND_LABEL[band]}`),
+      now.map((r, k) => cell(r[band], was[k][band])),
+      cell(total(now, band), total(was, band), assessed)))),
+    el('tfoot', {}, el('tr', {}, el('td', { text: 'Students assessed' }), now.map((r) => el('td', { class: 'num', text: String(r.exceed + r.meet + r.below) })),
+      el('td', { class: 'num', text: String(assessed) }))));
+}
+
 function paintResults() {
   const marks = planMarks[planResultsCode];
   const { exceed, meet } = marks.cutoffs;
@@ -1452,6 +1474,8 @@ function paintResults() {
   $('res-charts').replaceChildren(...marks.clos.map((clo, i) => (clo.scores.length ? distributionChart(clo, i + 1, marks.cutoffs, top)
     : el('figure', { class: 'res-chart' }, el('figcaption', {}, el('strong', { text: `CLO${i + 1}` }), ' No marks for this CLO.')))));
   $('res-table').replaceChildren(resultsTable(marks));
+  $('res-overall-box').replaceChildren(bandSummary(marks));
+  $('res-overall-note').textContent = moved ? 'Counts of students, each student once per CLO. Coloured figures are the change from the marks sheet’s cut-offs.' : 'Counts of students, each student once per CLO. Move a handle to see how many change band.';
   marks.clos.forEach((clo, i) => {
     const card = $(`res-review-${i}`);
     if (!card) return;
@@ -1537,6 +1561,7 @@ async function renderResults() {
   const range = (band, label) => el('div', { class: 'res-range' }, el('i', { class: `res-key res-${band}` }), el('strong', { text: label }), el('span', { id: `res-range-${band}` }));
   $('plan-panel-results').replaceChildren(...head,
     el('p', { class: 'plan-intro' }, `Marks from ${marks.name}, ${plural(marks.students, 'student')}. Drag the two handles to set where each band starts and ends. The bands meet, so the top of one is the bottom of the next.`),
+    el('div', { class: 'res-top' },
     el('section', { class: 'res-bands' },
       el('div', { class: 'band-slider', id: 'res-slider' }, slider('res-meet', 'meet', 'Lowest mark for Meet Expectation, in percent'), slider('res-exceed', 'exceed', 'Lowest mark for Exceed Expectation, in percent')),
       el('div', { class: 'band-scale', 'aria-hidden': 'true' }, [0, 25, 50, 75, 100].map((t) => el('span', { text: `${t}%` }))),
@@ -1547,6 +1572,10 @@ async function renderResults() {
         renderResults();
       } }),
       el('p', { class: 'fine', id: 'res-sheet-note' })),
+    el('section', { class: 'res-overall-card' },
+      el('h3', { class: 'res-overall-title', text: 'Students in each band' }),
+      el('div', { class: 'table-card table-scroll', id: 'res-overall-box' }),
+      el('p', { class: 'fine', id: 'res-overall-note' }))),
     el('h3', { class: 'subtitle', text: 'Distribution of marks by CLO' }),
     el('p', { class: 'fine', text: 'Each bar is 5% of the marks for that CLO, and its height is the number of students. The two lines are the cut-offs.' }),
     el('div', { class: 'res-charts', id: 'res-charts' }),

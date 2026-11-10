@@ -570,7 +570,7 @@ select option:disabled { color: #9aa0ab; }
 
 /* Course Planner: results. Band colours are status colours, always paired with a label. */
 :root { --band-exceed: #0ca30c; --band-meet: #fab219; --band-below: #d03b3b; }
-.res-bands { max-width: 760px; margin-bottom: 20px; padding: 18px 20px; background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); }
+.res-bands { min-width: 0; margin-bottom: 0; padding: 18px 20px; background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); }
 .band-slider { position: relative; height: 28px; --meet: 50%; --exceed: 75%; }
 .band-slider::before { content: ""; position: absolute; left: 0; right: 0; top: 10px; height: 8px; border-radius: 4px;
   background: linear-gradient(90deg, var(--band-below) var(--meet), var(--band-meet) var(--meet) var(--exceed), var(--band-exceed) var(--exceed)); }
@@ -663,3 +663,15 @@ select option:disabled { color: #9aa0ab; }
   .alloc-load .alloc-track { grid-column: 1 / -1; grid-row: 2; }
   .alloc-card { padding: 14px; }
 }
+
+/* marks: the sliders with the overall band counts beside them */
+.res-top { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 18px; align-items: start; margin-bottom: 20px; }
+.res-overall-card { min-width: 0; padding: 18px 20px; background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); }
+.res-overall-title { font: 700 16px Montserrat, sans-serif; color: var(--heading); margin: 0 0 10px; }
+.res-overall-card .fine { margin: 10px 0 0; }
+.res-overall td { white-space: nowrap; }
+.res-overall .res-key { display: inline-block; vertical-align: middle; }
+.res-delta { font-weight: 700; font-size: 13px; }
+.res-delta.is-up { color: var(--green); }
+.res-delta.is-down { color: var(--red); }
+@media (max-width: 1000px) { .res-top { grid-template-columns: 1fr; } }
