@@ -1566,14 +1566,20 @@ function moveCutoff(i, which, value) {
 const columnLetter = (n) => (n > 26 ? columnLetter(Math.floor((n - 1) / 26)) : '') + String.fromCharCode(65 + ((n - 1) % 26));
 
 /** Writes the slider cut-offs into the marks sheet's AoL Summary yellow cells, keeping everything else in the file as it is. */
+// The XML part that holds a named sheet in a workbook zip.
+function sheetPath(zip, name) {
+  const book = zip.file('xl/workbook.xml').asText();
+  const id = (book.match(new RegExp(`<sheet [^>]*name="${name}"[^>]*>`)) || [''])[0].match(/r:id="([^"]+)"/)[1];
+  const rels = zip.file('xl/_rels/workbook.xml.rels').asText();
+  const target = rels.match(new RegExp(`<Relationship [^>]*Id="${id}"[^>]*>`))[0].match(/Target="([^"]+)"/)[1].replace(/^\/?(xl\/)?/, '');
+  return `xl/${target}`;
+}
+
 async function writeCutoffs(marks) {
   const PizZip = await loadPizZip();
   const zip = new PizZip(await marks.blob.arrayBuffer());
   const book = zip.file('xl/workbook.xml').asText();
-  const id = (book.match(/<sheet [^>]*name="AoL Summary"[^>]*>/) || [''])[0].match(/r:id="([^"]+)"/)[1];
-  const rels = zip.file('xl/_rels/workbook.xml.rels').asText();
-  const target = rels.match(new RegExp(`<Relationship [^>]*Id="${id}"[^>]*>`))[0].match(/Target="([^"]+)"/)[1].replace(/^\/?(xl\/)?/, '');
-  const path = `xl/${target}`;
+  const path = sheetPath(zip, 'AoL Summary');
   let xml = zip.file(path).asText();
   const inMarks = marks.layout.unit === 'marks';
   cutsOf(marks).forEach((cut, i) => {
@@ -1590,29 +1596,67 @@ async function writeCutoffs(marks) {
   zip.file(path, xml);
   // Excel recalculates the results when the file is next opened.
   zip.file('xl/workbook.xml', /<calcPr\b/.test(book) ? book.replace(/<calcPr\b([^>]*?)(\s*fullCalcOnLoad="[^"]*")?(\/?)>/, '<calcPr$1 fullCalcOnLoad="1"$3>') : book.replace('</workbook>', '<calcPr fullCalcOnLoad="1"/></workbook>'));
-  return zip.generate({ type: 'blob', mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+  return zip.generate({ type: 'blob', mimeType: XLSX_TYPE });
 }
 
-/** Downloads the marks sheet with the cut-offs set here, and keeps that file as the subject's marks sheet. */
+const XLSX_TYPE = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+const isFormula = (cell) => cell.type === 6 || (cell.value && typeof cell.value === 'object' && ('formula' in cell.value || 'sharedFormula' in cell.value));
+
+/** The subject's marks sheet in the latest layout: the upload if it already is, the latest blank with the
+ *  uploaded marks copied in if it's an older version, or the current sample (dummy marks) if nothing was uploaded. */
+async function latestMarksSheet(code, marks) {
+  if (!marks.sample && marks.layout?.unit === 'marks') return marks.blob;
+  const fetchBlob = async (url) => { const res = await fetch(url); if (!res.ok) throw new Error(url); return res.blob(); };
+  if (marks.sample) return fetchBlob(PLAN_DIR + planIndex[code].marks);
+  const PizZip = await loadPizZip();
+  const zip = new PizZip(await (await fetchBlob(blankMarks(code))).arrayBuffer());
+  const path = sheetPath(zip, 'Marks Sheet');
+  const ExcelJS = await loadExcel();
+  const upload = new ExcelJS.Workbook();
+  await upload.xlsx.load(await marks.blob.arrayBuffer());
+  const from = upload.getWorksheet('Marks Sheet');
+  const esc = (t) => t.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  // The Marks Sheet tab hasn't changed between versions, so every typed-in cell of the blank takes the upload's value
+  // from the same place. Formulas stay the blank's. Written as XML because rewriting with ExcelJS breaks the file for Excel.
+  const xml = zip.file(path).asText().replace(/<c r="([A-Z]+\d+)"([^>]*?)(\/>|>([\s\S]*?)<\/c>)/g, (whole, ref, attrs, end, inner = '') => {
+    if (/<f[ >]/.test(inner)) return whole;
+    const cell = from.getCell(ref);
+    if (isFormula(cell) || (cell.isMerged && cell.master !== cell)) return whole;
+    let v = cell.value;
+    if (v && typeof v === 'object') v = v.richText ? v.richText.map((r) => r.text).join('') : typeof v.text === 'string' ? v.text : undefined;
+    if (v === undefined) return whole;
+    const base = attrs.replace(/\s+t="[^"]*"/, '');
+    if (v === null || v === '') return `<c r="${ref}"${base}/>`;
+    if (typeof v === 'number') return `<c r="${ref}"${base}><v>${v}</v></c>`;
+    return `<c r="${ref}"${base} t="inlineStr"><is><t xml:space="preserve">${esc(String(v))}</t></is></c>`;
+  });
+  zip.file(path, xml);
+  return zip.generate({ type: 'blob', mimeType: XLSX_TYPE });
+}
+
+/** Downloads the marks sheet, in the latest layout, with the cut-offs chosen here, and keeps it as the subject's marks sheet. */
 async function downloadAssessmentResults(code) {
   const marks = planMarks[code];
   const status = $('res-status');
   const name = `${code}_Assessment_Results.xlsx`;
-  if (!marks.layout) {
-    status.textContent = 'This marks sheet is an older version with one set of cut-offs for the whole subject, so the cut-offs for each CLO can’t be written into it. Download the blank, copy the marks across and upload it.';
-    return;
-  }
   status.textContent = `Building ${name}…`;
   try {
-    marks.blob = await writeCutoffs(marks);
+    const blob = await latestMarksSheet(code, marks);
+    const ExcelJS = await loadExcel();
+    const book = new ExcelJS.Workbook();
+    await book.xlsx.load(await blob.arrayBuffer());
+    const { layout } = readCutoffs(book, marks.clos.length, marks.clos.map((c) => c.most));
+    if (!layout || layout.unit !== 'marks') throw new Error('layout');
+    marks.blob = await writeCutoffs({ ...marks, blob, layout });
+    marks.layout = layout;
     marks.sheetCutoffs = cutsOf(marks).map((c) => ({ ...c }));
     marks.savedAt = new Date().toISOString();
     await saveMarks(code);
     saveBlob(marks.blob, name);
     paintResults();
-    status.textContent = `${name} is ready, with these cut-offs in marks on its AoL Summary tab.`;
+    status.textContent = `${name} is ready: ${marks.sample ? `the sample marks from ${SAMPLE_YEAR}` : `the marks from ${marks.name}`}, with these cut-offs in marks on its AoL Summary tab.`;
   } catch (e) {
-    status.textContent = 'The cut-offs couldn’t be written into this file. Its AoL Summary tab may have been rearranged; download the blank and copy the marks across.';
+    status.textContent = 'The Assessment Results file couldn’t be built. Please try again, or upload the marks sheet again.';
   }
 }
 
