@@ -751,8 +751,8 @@ function renderStudents() {
 // The documents are built ahead of time and reviewed; docs/course-docs/index.json lists what exists.
 const PLAN_DIR = 'docs/course-docs/';
 const PLAN_DOCS = [['outline', 'Course Outline'], ['aol', 'AoL Plan'], ['report', 'AoL Report']];
-// The order of the Generate tab's checkboxes and result columns: the marks sheet comes before the report it feeds.
-const PLAN_OUTPUTS = [PLAN_DOCS[0], PLAN_DOCS[1], ['marks', 'Assessment Results'], PLAN_DOCS[2]];
+// Generate documents builds these two. The AoL Report is built from the marks on the Marks & results tab.
+const PLAN_OUTPUTS = PLAN_DOCS.slice(0, 2);
 const PLAN_BLANKS = { outline: 'E-Logic_Course_Outline_Template.docx', aol: 'E-Logic_AoL_Plan_Template.docx', report: 'E-Logic_AoL_Report_Template.docx' };
 // A CLO's band comes from the share of its marks a student earned. These match the marks sheet's own defaults.
 const DEFAULT_CUTOFFS = { exceed: 0.75, meet: 0.5 };
@@ -1112,7 +1112,6 @@ const withMarks = (fields, marks) => ({ ...fields, results_note: marks.sample ? 
 
 // One document for a subject: built live if it has an uploaded template or marks, otherwise the reviewed file.
 async function planBlob({ code, kind, name }) {
-  if (kind === 'marks' && planMarks[code]) return planMarks[code].blob;
   if (kind === 'outline' && planReferences[code]) return rollForward(planReferences[code].blob, await subjectFields(code));
   if (kind === 'outline' && planOutlines[code]) return planOutlines[code].blob;
   const marks = kind === 'report' && planMarks[code];
@@ -1161,38 +1160,10 @@ function pickedSubjects() {
   return planSubjects().filter((c) => (!sem || c.Semester === sem) && (!code || c['Subject Code'] === code));
 }
 
-function openMarksTile(code) {
-  planResultsCode = code;
-  location.hash = 'planner/results';
-}
-
-// While "Upload Marks Sheet" is ticked, names the semester and each selected subject still without marks,
-// and keeps Generate documents greyed out until they are uploaded.
-function updateMarksPrompt() {
-  const missing = pickedSubjects().filter((c) => !planMarks[c['Subject Code']]);
-  const prompt = $('plan-marks-prompt');
-  prompt.hidden = !$('plan-marks').checked || !missing.length;
-  if (prompt.hidden) return [];
-  const semester = $('plan-sem').selectedOptions[0]?.text || 'All semesters';
-  const chip = (text) => el('mark', { class: 'plan-pick', text });
-  prompt.replaceChildren(
-    el('p', {}, 'Please upload the marks sheet for ', chip(semester), ' ',
-      ...missing.flatMap((c, i) => [i ? (i === missing.length - 1 ? ' and ' : ', ') : '', chip(`${c['Subject Code']} ${c.Subject}`)]),
-      ` on the Marks & results tab. Generate documents is available once ${missing.length === 1 ? 'it is' : 'they are'} uploaded, or untick Upload Marks Sheet. `
-      + `Until then, the AoL Report shows sample results from the ${SAMPLE_YEAR} offering, highlighted in yellow.`),
-    el('div', { class: 'plan-prompt-actions' }, missing.map((c) => el('button', { class: 'btn btn-outline btn-sm', type: 'button',
-      text: missing.length === 1 ? 'Upload marks sheet' : `Upload for ${c['Subject Code']}`, onclick: () => openMarksTile(c['Subject Code']) }))));
-  return missing;
-}
-
 function clearPlanResults() {
   $('plan-results').hidden = true;
-  const missing = updateMarksPrompt();
   renderReference();
-  const picked = PLAN_OUTPUTS.some(([kind]) => $(`plan-${kind}`).checked);
-  const blocked = $('plan-marks').checked && missing.length > 0;
-  $('plan-generate').disabled = !picked || blocked;
-  $('plan-generate').title = blocked ? 'Upload the marks sheet first, or untick Upload Marks Sheet' : '';
+  $('plan-generate').disabled = !PLAN_OUTPUTS.some(([kind]) => $(`plan-${kind}`).checked);
 }
 
 function generatePlan() {
@@ -1212,17 +1183,15 @@ function generatePlan() {
       if (!name) return el('td', { class: 'plan-none', text: 'Not available yet' });
       const file = { code: c['Subject Code'], kind, name };
       planFiles.push(file);
-      const marks = (kind === 'report' || kind === 'marks') && planMarks[c['Subject Code']];
       const reference = kind === 'outline' && planReferences[c['Subject Code']];
       if (reference) return el('td', {}, el('button', { class: 'btn-link', type: 'button', onclick: () => downloadPlanFile(file) }, icon('download'), ' Download'),
         el('small', { class: 'plan-custom', text: 'From your reference' }));
       const outline = kind === 'outline' && planOutlines[c['Subject Code']];
       if (outline) return el('td', {}, el('button', { class: 'btn-link', type: 'button', onclick: () => downloadPlanFile(file) }, icon('download'), ' Download'),
         el('small', { class: 'plan-custom', text: `Version ${outline.version}, ${OUTLINE_STATUS[outline.status].toLowerCase()}` }));
-      if (!planCustom[kind] && !marks) return el('td', {}, el('a', { href: PLAN_DIR + name, download: true }, icon('download'), ' Download'),
-        kind === 'marks' ? el('small', { class: 'plan-sample', text: `Sample results, ${SAMPLE_YEAR}` }) : null);
+      if (!planCustom[kind]) return el('td', {}, el('a', { href: PLAN_DIR + name, download: true }, icon('download'), ' Download'));
       return el('td', {}, el('button', { class: 'btn-link', type: 'button', onclick: () => downloadPlanFile(file) }, icon('download'), ' Download'),
-        el('small', { class: 'plan-custom', text: [planCustom[kind] && 'Your template', marks && (marks.sample ? `Sample results, ${SAMPLE_YEAR}` : 'Your marks')].filter(Boolean).join(', ') }));
+        el('small', { class: 'plan-custom', text: 'Your template' }));
     })));
   $('plan-table').replaceChildren(el('thead', {}, head), el('tbody', {}, body));
   $('plan-status').textContent = `${plural(planFiles.length, 'document')} for ${plural(rows.length, 'subject')}.`;
@@ -2340,7 +2309,7 @@ async function renderPlanner() {
     ...[...new Set(data.curriculum.map((c) => c.Semester))].map((s) => el('option', { value: s, text: `Semester ${s}`, disabled: !rows.some((c) => c.Semester === s) })));
   fillPlanSubjects();
   $('plan-note').textContent = `${plural(rows.length, 'sample subject')} available so far, with more to come, and the rest are greyed out. `
-    + `All documents are drafts for faculty review. AoL Reports and marks sheets show sample results from the ${SAMPLE_YEAR} offering, highlighted in yellow, until this term’s marks are uploaded on the Marks & results tab, where faculty also rewrite the draft in the last table of each report.`;
+    + `All documents are drafts for faculty review. The AoL Report and Assessment Results are on the Marks & results tab: upload this term’s marks there, rewrite the draft in the last table and download the report.`;
   $('plan-sem').addEventListener('change', () => { fillPlanSubjects(); clearPlanResults(); });
   $('plan-subject').addEventListener('change', clearPlanResults);
   for (const [kind] of PLAN_OUTPUTS) $(`plan-${kind}`).addEventListener('change', clearPlanResults);
