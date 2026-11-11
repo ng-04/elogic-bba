@@ -751,7 +751,7 @@ function renderStudents() {
 // The documents are built ahead of time and reviewed; docs/course-docs/index.json lists what exists.
 const PLAN_DIR = 'docs/course-docs/';
 const PLAN_DOCS = [['outline', 'Course Outline'], ['aol', 'AoL Plan'], ['report', 'AoL Report']];
-// Generate documents builds these two. The AoL Report is built from the marks on the Marks & results tab.
+// Generate documents builds these two. The AoL Report is built from the marks on the AoL Report and Assessment Results tab.
 const PLAN_OUTPUTS = PLAN_DOCS.slice(0, 2);
 const PLAN_BLANKS = { outline: 'E-Logic_Course_Outline_Template.docx', aol: 'E-Logic_AoL_Plan_Template.docx', report: 'E-Logic_AoL_Report_Template.docx' };
 // A CLO's band comes from the share of its marks a student earned. These match the marks sheet's own defaults.
@@ -1378,7 +1378,7 @@ const BIN_WIDTH = 5; // percentage points of a CLO's marks in each bar
 
 const saveMarks = (code) => templateStore('readwrite', (s) => s.put(planMarks[code], `marks:${code}`)).catch(() => { /* storage blocked: kept for this visit */ });
 
-// Upload, blank and sample for the chosen subject, at the top of the Marks & results tab.
+// Upload, blank and sample for the chosen subject, at the top of the AoL Report and Assessment Results tab.
 function marksBar(code) {
   const saved = planMarks[code];
   const message = el('p', { class: 'tpl-msg', id: 'res-message', role: 'status' });
@@ -2309,7 +2309,7 @@ async function renderPlanner() {
     ...[...new Set(data.curriculum.map((c) => c.Semester))].map((s) => el('option', { value: s, text: `Semester ${s}`, disabled: !rows.some((c) => c.Semester === s) })));
   fillPlanSubjects();
   $('plan-note').textContent = `${plural(rows.length, 'sample subject')} available so far, with more to come, and the rest are greyed out. `
-    + `All documents are drafts for faculty review. The AoL Report and Assessment Results are on the Marks & results tab: upload this term’s marks there, rewrite the draft in the last table and download the report.`;
+    + `All documents are drafts for faculty review. For the AoL Report and Assessment Results, use the tab of that name: upload this term’s marks, rewrite the draft in the last table and download the report.`;
   $('plan-sem').addEventListener('change', () => { fillPlanSubjects(); clearPlanResults(); });
   $('plan-subject').addEventListener('change', clearPlanResults);
   for (const [kind] of PLAN_OUTPUTS) $(`plan-${kind}`).addEventListener('change', clearPlanResults);

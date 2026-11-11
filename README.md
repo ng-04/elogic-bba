@@ -13,12 +13,12 @@ pages are:
   searchable table.
 - **Handbook & Master File**: the 11-page student handbook (PDF) and the master-data workbook (XLSX).
 - **Course Planner**: pick a program, semester and subject (or all) to get each subject's Course
-  Outline and AoL Plan. The AoL Report and Assessment Results come from the Marks & results tab. The files are pre-generated in `docs/course-docs/`, three sample
+  Outline and AoL Plan. The AoL Report and Assessment Results come from the tab of that name. The files are pre-generated in `docs/course-docs/`, three sample
   subjects so far. The Templates tab shows the blank templates; an uploaded template is saved in that
   browser only and fills the documents there from `docs/course-docs/fields/`. A marks sheet uploaded
   on the same tab replaces the dummy results in that subject's AoL Report, also in that browser only.
   The **Outline review** tab takes an outline from last year's version through reupload, an HTML view
-  of what goes into the document, approval, a PDF and sharing with students. The **Marks & results** tab takes the marks upload and shows
+  of what goes into the document, approval, a PDF and sharing with students. The **AoL Report and Assessment Results** tab takes the marks upload and shows
   the distribution of marks for each CLO, with sliders for the band cut-offs, and prompts and
   suggestions for the report's Analysis of Result and Improvement Plan (`data/course_docs/coaching.json`).
   The site has no server or sign-in, so all of this stays in one browser and approval isn't proof of
