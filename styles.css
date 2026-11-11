@@ -260,6 +260,19 @@ select option:disabled { color: #9aa0ab; }
 .doc-actions svg { width: 16px; height: 16px; }
 .pdf-frame { border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; height: 85vh; background: var(--bg-alt); }
 .pdf-frame iframe { width: 100%; height: 100%; border: 0; }
+.hb-viewer { scroll-margin-top: 90px; }
+.hb-tabs { margin-bottom: 16px; }
+.hb-sheets { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+.hb-sheets button { font: 600 13px Montserrat, sans-serif; border: 1px solid var(--line); background: var(--card); color: var(--heading); padding: 6px 12px; border-radius: 8px; cursor: pointer; }
+.hb-sheets button[aria-selected="true"] { background: #1d6f42; border-color: #1d6f42; color: #fff; }
+.hb-grid { border: 1px solid var(--line); border-radius: var(--radius); overflow: auto; max-height: 80vh; background: var(--card); }
+.hb-grid table { border-collapse: separate; border-spacing: 0; font-size: 13px; min-width: 100%; }
+.hb-grid th, .hb-grid td { padding: 6px 10px; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); white-space: nowrap; max-width: 320px; overflow: hidden; text-overflow: ellipsis; text-align: left; }
+.hb-grid thead th { position: sticky; top: 0; z-index: 2; background: var(--bg-alt); color: var(--heading); font-weight: 700; }
+.hb-grid .hb-rn { position: sticky; left: 0; z-index: 1; background: var(--bg-alt); color: var(--muted); text-align: right; font-weight: 400; min-width: 36px; }
+.hb-grid thead .hb-rn { z-index: 3; }
+.hb-grid td.num { text-align: right; font-variant-numeric: tabular-nums; }
+.hb-grid td.is-formula { background: color-mix(in srgb, #1d6f42 8%, transparent); }
 
 /* ---------------------------------------------------------------- ask */
 .ask-head { background: linear-gradient(120deg, var(--navy) 0%, var(--navy-2) 100%); color: #fff; padding: 44px 0; border-bottom: 5px solid var(--orange); }

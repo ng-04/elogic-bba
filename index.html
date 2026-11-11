@@ -331,7 +331,7 @@
         <div class="doc-body">
           <h3>BBA Student Handbook 2026-27</h3>
           <p>Welcome from the Dean, programme overview, pedagogy, credit framework, all subjects, assessment and grading, outcomes, academic calendar and key contacts.</p>
-          <div class="doc-actions"><a class="btn btn-primary" href="docs/E-Logic_BBA_Student_Handbook_2026-27.pdf" target="_blank" rel="noopener">Open</a><a class="btn btn-outline" href="docs/E-Logic_BBA_Student_Handbook_2026-27.pdf" download><svg><use href="#i-download"/></svg> Download</a></div>
+          <div class="doc-actions"><button class="btn btn-primary" type="button" id="hb-open-pdf">Open</button><a class="btn btn-outline" href="docs/E-Logic_BBA_Student_Handbook_2026-27.pdf" download><svg><use href="#i-download"/></svg> Download</a></div>
         </div>
       </article>
       <article class="doc-card">
@@ -339,11 +339,22 @@
         <div class="doc-body">
           <h3>BBA Master Data 2026-27</h3>
           <p><b>Curriculum Master</b>: subject, area, credits, sessions, hours taught, faculty credit hours, sections, type, assessment. <b>Student Master</b>: student, parent, home state, date of admission and more. <b>Faculty Master</b>: professors and utilization % against the goal. <b>Faculty Utilization</b>: every section taught. <b>Assumptions</b>: the teaching-time rule. Calculated columns are Excel formulas.</p>
-          <div class="doc-actions"><a class="btn btn-outline" href="docs/E-Logic_BBA_Master_Data_2026-27.xlsx" download><svg><use href="#i-download"/></svg> Download</a></div>
+          <div class="doc-actions"><button class="btn btn-primary" type="button" id="hb-open-xlsx">Open</button><a class="btn btn-outline" href="docs/E-Logic_BBA_Master_Data_2026-27.xlsx" download><svg><use href="#i-download"/></svg> Download</a></div>
         </div>
       </article>
     </div>
-    <div class="pdf-frame"><iframe src="docs/E-Logic_BBA_Student_Handbook_2026-27.pdf#view=FitH" title="BBA Student Handbook 2026-27" loading="lazy"></iframe></div>
+    <div class="hb-viewer" id="hb-viewer">
+      <div class="seg hb-tabs" role="tablist" aria-label="Document">
+        <button role="tab" type="button" id="hb-tab-pdf" aria-selected="true">Student Handbook (PDF)</button>
+        <button role="tab" type="button" id="hb-tab-xlsx" aria-selected="false">Master Data (Excel)</button>
+      </div>
+      <div class="pdf-frame" id="hb-pdf"><iframe src="docs/E-Logic_BBA_Student_Handbook_2026-27.pdf#view=FitH" title="BBA Student Handbook 2026-27" loading="lazy"></iframe></div>
+      <div id="hb-xlsx" hidden>
+        <div class="hb-sheets" role="tablist" aria-label="Sheet" id="hb-sheets"></div>
+        <p class="fine" id="hb-sheet-note"></p>
+        <div class="hb-grid" id="hb-grid"></div>
+      </div>
+    </div>
   </div>
 </section>
 

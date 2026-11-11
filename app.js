@@ -2965,6 +2965,83 @@ function wireChat() {
   for (const b of document.querySelectorAll('.source-tabs button')) b.addEventListener('click', () => switchSource(b.dataset.source));
 }
 
+// ================================================================== handbook & master file: PDF and Excel views
+
+const MASTER_FILE = 'docs/E-Logic_BBA_Master_Data_2026-27.xlsx';
+let masterBook = null;
+
+// A cell as Excel shows it: a formula's saved result, percentages and dates in their format.
+function shownValue(cell) {
+  let v = cell.value;
+  if (v && typeof v === 'object' && !(v instanceof Date)) {
+    if ('result' in v || 'formula' in v || 'sharedFormula' in v) v = v.result;
+    else if (v.richText) v = v.richText.map((t) => t.text).join('');
+    else if ('text' in v) v = v.text;
+    else if (v.error) v = v.error;
+  }
+  if (v == null) return '';
+  if (v instanceof Date) return v.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' });
+  if (typeof v === 'number') {
+    const fmt = cell.numFmt || '';
+    if (fmt.includes('%')) return `${(v * 100).toFixed((fmt.split('.')[1] || '').replace(/[^0]/g, '').length)}%`;
+    return Number.isInteger(v) ? String(v) : String(Math.round(v * 100) / 100);
+  }
+  return String(v);
+}
+
+function showMasterSheet(name) {
+  const sheet = masterBook.getWorksheet(name);
+  for (const b of $('hb-sheets').children) b.setAttribute('aria-selected', String(b.dataset.sheet === name));
+  const cols = sheet.columnCount;
+  const cellOf = (row, c) => {
+    const cell = row.getCell(c);
+    if (cell.isMerged && cell.master !== cell) return el('td');
+    const text = shownValue(cell);
+    const formula = cell.formula || (cell.value && cell.value.formula);
+    const isNum = typeof (cell.value?.result ?? cell.value) === 'number';
+    return el('td', { class: [isNum ? 'num' : '', formula ? 'is-formula' : ''].filter(Boolean).join(' '), text, title: formula ? `=${formula}` : text.length > 40 ? text : '' });
+  };
+  const head = sheet.getRow(1);
+  const rows = [];
+  for (let r = 2; r <= sheet.rowCount; r++) {
+    const row = sheet.getRow(r);
+    rows.push(el('tr', {}, el('th', { class: 'hb-rn', text: String(r) }), Array.from({ length: cols }, (_, i) => cellOf(row, i + 1))));
+  }
+  $('hb-grid').replaceChildren(el('table', {},
+    el('thead', {}, el('tr', {}, el('th', { class: 'hb-rn', text: '1' }), Array.from({ length: cols }, (_, i) => el('th', { text: shownValue(head.getCell(i + 1)) })))),
+    el('tbody', {}, rows)));
+  $('hb-grid').scrollTo(0, 0);
+  $('hb-sheet-note').textContent = `${sheet.name}: ${plural(sheet.rowCount - 1, 'row')}, ${plural(cols, 'column')}. Shaded cells are Excel formulas; point at one to see it. Download the file to edit it in Excel.`;
+}
+
+async function showHandbookView(which, scroll = true) {
+  $('hb-tab-pdf').setAttribute('aria-selected', String(which === 'pdf'));
+  $('hb-tab-xlsx').setAttribute('aria-selected', String(which === 'xlsx'));
+  $('hb-pdf').hidden = which !== 'pdf';
+  $('hb-xlsx').hidden = which !== 'xlsx';
+  if (scroll) $('hb-viewer').scrollIntoView({ behavior: 'smooth' });
+  if (which !== 'xlsx' || masterBook) return;
+  $('hb-sheet-note').textContent = 'Loading the master data…';
+  try {
+    const ExcelJS = await loadExcel();
+    const book = new ExcelJS.Workbook();
+    await book.xlsx.load(await (await fetch(MASTER_FILE)).arrayBuffer());
+    masterBook = book;
+    const names = book.worksheets.map((ws) => ws.name);
+    $('hb-sheets').replaceChildren(...names.map((name) => el('button', { type: 'button', role: 'tab', 'data-sheet': name, text: name, onclick: () => showMasterSheet(name) })));
+    showMasterSheet(names[0]);
+  } catch (e) {
+    $('hb-sheet-note').textContent = 'The master data couldn’t be shown here. You can still download it.';
+  }
+}
+
+function wireHandbook() {
+  $('hb-open-pdf').addEventListener('click', () => showHandbookView('pdf'));
+  $('hb-open-xlsx').addEventListener('click', () => showHandbookView('xlsx'));
+  $('hb-tab-pdf').addEventListener('click', () => showHandbookView('pdf', false));
+  $('hb-tab-xlsx').addEventListener('click', () => showHandbookView('xlsx', false));
+}
+
 // ================================================================== start
 
 function wireChrome() {
@@ -2982,6 +3059,7 @@ async function start() {
   wireKey();
   wireChat();
   wireUploads();
+  wireHandbook();
   try {
     data = await (await fetch('site-data.json')).json();
   } catch (e) {
