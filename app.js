@@ -949,7 +949,8 @@ const bandFields = ({ exceed, meet, below }) => {
 };
 
 // The AoL Summary's yellow cells set each CO's cut-offs and target, and the report must agree with that sheet.
-function readCutoffs(book, count) {
+// Current sheets give each CO's Meet and Exceed minimum in marks (out of `mosts`); earlier ones gave shares.
+function readCutoffs(book, count, mosts) {
   const fallback = { cutoffs: Array.from({ length: count }, () => ({ ...DEFAULT_CUTOFFS })), targets: Array(count).fill(DEFAULT_TARGET) };
   const sheet = book.getWorksheet('AoL Summary');
   if (!sheet) return fallback;
@@ -959,8 +960,26 @@ function readCutoffs(book, count) {
   const cols = {};
   if (head) sheet.getRow(head).eachCell((cell, c) => { cols[cellText(cell)] = c; });
   let found;
-  if (head && cols['Exceed at least'] && cols['Meet at least']) {
-    found = { cutoffs: [], targets: [], layout: { first: head + 1, exceed: cols['Exceed at least'], meet: cols['Meet at least'] } };
+  const minOf = (group) => {
+    for (let c = 1; c <= 20; c++) if (cellText(sheet.getCell(head + 1, c)) === 'Min' && cellText(sheet.getCell(head, c)) === group) return c;
+    return 0;
+  };
+  if (head && minOf('Meet') && minOf('Exceed')) {
+    const layout = { first: head + 2, exceed: minOf('Exceed'), meet: minOf('Meet'), unit: 'marks' };
+    found = { cutoffs: [], targets: [], layout };
+    for (let i = 0; i < count; i++) {
+      const r = layout.first + i;
+      if (cellText(sheet.getCell(r, 1)) !== `CO${i + 1}`) return { error: `The AoL Summary tab should list CO${i + 1} in row ${r}.` };
+      const most = mosts[i];
+      const meet = num(sheet.getCell(r, layout.meet));
+      const exceed = num(sheet.getCell(r, layout.exceed));
+      if (!most) found.cutoffs.push({ ...DEFAULT_CUTOFFS });
+      else if (!(meet > 0 && meet < exceed && exceed <= most)) return { error: `Check CO${i + 1}’s cut-offs on the AoL Summary tab: the Meet Min must be above 0 and below the Exceed Min, and the Exceed Min no more than the Max Marks (${marksText(most)}).` };
+      else found.cutoffs.push({ meet: meet / most, exceed: exceed / most });
+      found.targets.push(cols.Target ? num(sheet.getCell(r, cols.Target)) ?? DEFAULT_TARGET : DEFAULT_TARGET);
+    }
+  } else if (head && cols['Exceed at least'] && cols['Meet at least']) {
+    found = { cutoffs: [], targets: [], layout: { first: head + 1, exceed: cols['Exceed at least'], meet: cols['Meet at least'], unit: 'share' } };
     for (let i = 0; i < count; i++) {
       const r = head + 1 + i;
       if (cellText(sheet.getCell(r, 1)) !== `CO${i + 1}`) return { error: `The AoL Summary tab should list CO${i + 1} in row ${r}.` };
@@ -1041,14 +1060,14 @@ async function readMarks(code, file) {
   const named = (cellText(sheet.getCell('C2')).match(/[A-Z]{3}\d{3}/) || [])[0];
   if (named && named !== code) return { error: `This marks sheet is for ${named}, but ${code} is selected.` };
   const { clos } = await subjectFields(code);
-  const { cutoffs, targets, layout, error: cutoffError } = readCutoffs(book, clos.length);
-  if (cutoffError) return { error: cutoffError };
   const bloomRow = labelRow(sheet, 'Bloom\'s Level');
   const { columns, error } = markedColumns(sheet, { outcome: outcomeRow, marks: marksRow, question: labelRow(sheet, 'Question'), bloom: bloomRow }, clos.length);
   if (error) return { error };
   const counted = readStudents(sheet, (bloomRow || outcomeRow) + 1, columns, clos.length);
   if (counted.error) return counted;
   if (counted.clos.every((c) => !c.scores.length)) return { error: 'No marks found. Enter marks on the Marks Sheet, then upload it again.' };
+  const { cutoffs, targets, layout, error: cutoffError } = readCutoffs(book, clos.length, counted.clos.map((c) => c.most));
+  if (cutoffError) return { error: cutoffError };
   const missing = clos.filter((c, i) => !counted.clos[i].scores.length).map((c) => `CLO${c.n}`);
   const marks = { clos: counted.clos, students: counted.students, targets, target: targets[0], sheetCutoffs: cutoffs.map((c) => ({ ...c })), layout: layout || null,
     warnings: missing.length ? [`No marks for ${missing.join(', ')}, so the report shows a dash for ${missing.length === 1 ? 'it' : 'them'}.`] : [] };
@@ -1439,19 +1458,20 @@ function resultsTable(marks) {
   const rows = marks.clos.map((clo, i) => {
     const bands = countBands(clo, cuts[i]);
     const shares = clo.scores.map(({ got }) => got / clo.most * 100);
+    const got = clo.scores.map((s) => s.got);
     const n = shares.length;
     const status = n ? cloStatus(bands, targets[i]) : null;
     return el('tr', {}, el('td', {}, el('strong', { text: `CLO${i + 1}` })), el('td', { class: 'num', text: String(n) }),
-      el('td', { class: 'num', text: pct(shares.reduce((a, b) => a + b, 0) / 100, n) }),
-      el('td', { class: 'num', text: n ? `${Math.min(...shares).toFixed(0)}% to ${Math.max(...shares).toFixed(0)}%` : '-' }),
-      el('td', { class: 'num', text: `${percent(cuts[i].meet)} / ${percent(cuts[i].exceed)}` }),
+      el('td', { class: 'num', text: n ? `${marksText(got.reduce((a, b) => a + b, 0) / n)} of ${marksText(clo.most)}` : '-' }),
+      el('td', { class: 'num', text: n ? `${marksText(Math.min(...got))} to ${marksText(Math.max(...got))}` : '-' }),
+      el('td', { class: 'num', text: clo.most ? `${marksText(markAt(cuts[i].meet, clo.most))} / ${marksText(markAt(cuts[i].exceed, clo.most))}` : '-' }),
       ['exceed', 'meet', 'below'].map((band) => el('td', { class: 'num', text: `${bands[band]} (${pct(bands[band], n)})` })),
       el('td', { class: 'num', text: pct(bands.exceed + bands.meet, n) }),
       el('td', { class: 'num', text: percent(targets[i]) }),
       el('td', {}, status ? el('span', { class: `res-status res-status-${status}`, text: STATUS_LABEL[status] }) : '-'));
   });
   return el('table', { class: 'dt dt-compact' },
-    el('thead', {}, el('tr', {}, ['CLO', 'Students', 'Average', 'Range', 'Meet / Exceed from', 'Exceed', 'Meet', 'Does not meet', 'Met or exceeded', 'Target', 'Against target'].map((text) => el('th', { text })))),
+    el('thead', {}, el('tr', {}, ['CLO', 'Students', 'Average (marks)', 'Min to max (marks)', 'Meet / Exceed from (marks)', 'Exceed', 'Meet', 'Does not meet', 'Met or exceeded', 'Target', 'Against target'].map((text) => el('th', { text })))),
     el('tbody', {}, rows));
 }
 
@@ -1510,8 +1530,7 @@ function paintResults() {
   const moved = !sameCuts(sheet, cuts);
   const changed = cuts.map((c, i) => (c.exceed !== sheet[i].exceed || c.meet !== sheet[i].meet ? `CLO${i + 1}` : '')).filter(Boolean);
   $('res-reset').hidden = !moved;
-  $('res-save-cuts').disabled = !moved;
-  $('res-sheet-note').textContent = moved ? `${changed.join(', ')} ${changed.length === 1 ? 'differs' : 'differ'} from the marks sheet. When these are final, save them to the marks sheet so the sheet and the AoL Report agree.` : 'These are the cut-offs in your marks sheet.';
+  $('res-sheet-note').textContent = moved ? `${changed.join(', ')} ${changed.length === 1 ? 'differs' : 'differ'} from the marks sheet. When these are final, Download Assessment Results at the bottom of the page gives you the marks sheet with them.` : 'These are the cut-offs in your marks sheet.';
   $('res-charts').replaceChildren(...marks.clos.map((clo, i) => (clo.scores.length ? distributionChart(clo, i + 1, cuts[i], top)
     : el('figure', { class: 'res-chart' }, el('figcaption', {}, el('strong', { text: `CLO${i + 1}` }), ' No marks for this CLO.')))));
   $('res-table').replaceChildren(resultsTable(marks));
@@ -1546,46 +1565,54 @@ function moveCutoff(i, which, value) {
 
 const columnLetter = (n) => (n > 26 ? columnLetter(Math.floor((n - 1) / 26)) : '') + String.fromCharCode(65 + ((n - 1) % 26));
 
-/** Writes the cut-offs into the marks sheet's AoL Summary yellow cells, keeping everything else in the file as it is. */
-async function saveCutoffsToSheet(code) {
+/** Writes the slider cut-offs into the marks sheet's AoL Summary yellow cells, keeping everything else in the file as it is. */
+async function writeCutoffs(marks) {
+  const PizZip = await loadPizZip();
+  const zip = new PizZip(await marks.blob.arrayBuffer());
+  const book = zip.file('xl/workbook.xml').asText();
+  const id = (book.match(/<sheet [^>]*name="AoL Summary"[^>]*>/) || [''])[0].match(/r:id="([^"]+)"/)[1];
+  const rels = zip.file('xl/_rels/workbook.xml.rels').asText();
+  const target = rels.match(new RegExp(`<Relationship [^>]*Id="${id}"[^>]*>`))[0].match(/Target="([^"]+)"/)[1].replace(/^\/?(xl\/)?/, '');
+  const path = `xl/${target}`;
+  let xml = zip.file(path).asText();
+  const inMarks = marks.layout.unit === 'marks';
+  cutsOf(marks).forEach((cut, i) => {
+    const { most } = marks.clos[i];
+    if (inMarks && !most) return;
+    for (const [col, share] of [[marks.layout.exceed, cut.exceed], [marks.layout.meet, cut.meet]]) {
+      const ref = `${columnLetter(col)}${marks.layout.first + i}`;
+      const cell = new RegExp(`<c r="${ref}"([^>]*?)(/>|>[\\s\\S]*?</c>)`);
+      if (!cell.test(xml)) throw new Error(ref);
+      const value = inMarks ? markAt(share, most) : share;
+      xml = xml.replace(cell, (_, attrs) => `<c r="${ref}"${attrs.replace(/\s+t="[^"]*"/, '')}><v>${value}</v></c>`);
+    }
+  });
+  zip.file(path, xml);
+  // Excel recalculates the results when the file is next opened.
+  zip.file('xl/workbook.xml', /<calcPr\b/.test(book) ? book.replace(/<calcPr\b([^>]*?)(\s*fullCalcOnLoad="[^"]*")?(\/?)>/, '<calcPr$1 fullCalcOnLoad="1"$3>') : book.replace('</workbook>', '<calcPr fullCalcOnLoad="1"/></workbook>'));
+  return zip.generate({ type: 'blob', mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+}
+
+/** Downloads the marks sheet with the cut-offs set here, and keeps that file as the subject's marks sheet. */
+async function downloadAssessmentResults(code) {
   const marks = planMarks[code];
-  const note = $('res-save-note');
+  const status = $('res-status');
+  const name = `${code}_Assessment_Results.xlsx`;
   if (!marks.layout) {
-    note.textContent = 'This marks sheet has one set of cut-offs for the whole subject, from an older version. Download the blank to get one with cut-offs for each CO.';
-    note.className = 'tpl-msg is-error';
+    status.textContent = 'This marks sheet is an older version with one set of cut-offs for the whole subject, so the cut-offs for each CLO can’t be written into it. Download the blank, copy the marks across and upload it.';
     return;
   }
+  status.textContent = `Building ${name}…`;
   try {
-    const PizZip = await loadPizZip();
-    const zip = new PizZip(await marks.blob.arrayBuffer());
-    const book = zip.file('xl/workbook.xml').asText();
-    const id = (book.match(/<sheet [^>]*name="AoL Summary"[^>]*>/) || [''])[0].match(/r:id="([^"]+)"/)[1];
-    const rels = zip.file('xl/_rels/workbook.xml.rels').asText();
-    const target = rels.match(new RegExp(`<Relationship [^>]*Id="${id}"[^>]*>`))[0].match(/Target="([^"]+)"/)[1].replace(/^\/?(xl\/)?/, '');
-    const path = `xl/${target}`;
-    let xml = zip.file(path).asText();
-    cutsOf(marks).forEach((cut, i) => {
-      for (const [col, value] of [[marks.layout.exceed, cut.exceed], [marks.layout.meet, cut.meet]]) {
-        const ref = `${columnLetter(col)}${marks.layout.first + i}`;
-        const cell = new RegExp(`<c r="${ref}"([^>]*?)(/>|>[\\s\\S]*?</c>)`);
-        if (!cell.test(xml)) throw new Error(ref);
-        xml = xml.replace(cell, (_, attrs) => `<c r="${ref}"${attrs.replace(/\s+t="[^"]*"/, '')}><v>${value}</v></c>`);
-      }
-    });
-    zip.file(path, xml);
-    // Excel recalculates the results when the file is next opened.
-    zip.file('xl/workbook.xml', /<calcPr\b/.test(book) ? book.replace(/<calcPr\b([^>]*?)(\s*fullCalcOnLoad="[^"]*")?(\/?)>/, '<calcPr$1 fullCalcOnLoad="1"$3>') : book.replace('</workbook>', '<calcPr fullCalcOnLoad="1"/></workbook>'));
-    marks.blob = zip.generate({ type: 'blob', mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    marks.blob = await writeCutoffs(marks);
     marks.sheetCutoffs = cutsOf(marks).map((c) => ({ ...c }));
     marks.savedAt = new Date().toISOString();
     await saveMarks(code);
-    saveBlob(marks.blob, marks.name);
+    saveBlob(marks.blob, name);
     paintResults();
-    note.textContent = `Saved. ${marks.name} now has these cut-offs on its AoL Summary tab, and it is the marks sheet kept here.`;
-    note.className = 'tpl-msg';
+    status.textContent = `${name} is ready, with these cut-offs in marks on its AoL Summary tab.`;
   } catch (e) {
-    note.textContent = 'The cut-offs couldn’t be written into this file. Its AoL Summary tab may have been rearranged; download the blank and copy the marks across.';
-    note.className = 'tpl-msg is-error';
+    status.textContent = 'The cut-offs couldn’t be written into this file. Its AoL Summary tab may have been rearranged; download the blank and copy the marks across.';
   }
 }
 
@@ -1666,13 +1693,11 @@ async function renderResults() {
       ...marks.clos.map((clo, i) => (clo.most ? cutRow(clo, i) : null)).filter(Boolean),
       el('p', { class: 'fine', id: 'res-sheet-note' }),
       el('div', { class: 'tpl-actions' },
-        el('button', { class: 'btn btn-primary btn-sm', type: 'button', id: 'res-save-cuts', onclick: () => saveCutoffsToSheet(planResultsCode) }, icon('download'), ' Save cut-offs to the marks sheet'),
         el('button', { class: 'btn-link', type: 'button', id: 'res-reset', text: 'Go back to the marks sheet’s cut-offs', onclick: () => {
           applyCutoffs(marks, marks.sheetCutoffs);
           saveMarks(planResultsCode);
           renderResults();
-        } })),
-      el('p', { class: 'tpl-msg', id: 'res-save-note', role: 'status' })),
+        } }))),
     el('section', { class: 'res-overall-card' },
       el('h3', { class: 'res-overall-title', text: 'Students in each band' }),
       el('div', { class: 'table-card table-scroll', id: 'res-overall-box' }),
@@ -1686,6 +1711,7 @@ async function renderResults() {
     ...marks.clos.map((clo, i) => (clo.scores.length ? reviewCard(clo, i) : null)).filter(Boolean),
     el('div', { class: 'plan-actions' },
       el('button', { class: 'btn btn-primary', type: 'button', onclick: () => downloadReport(planResultsCode) }, icon('download'), ' Download AoL Report'),
+      el('button', { class: 'btn btn-outline', type: 'button', id: 'res-download-results', onclick: () => downloadAssessmentResults(planResultsCode) }, icon('download'), ' Download Assessment Results'),
       el('span', { class: 'fine', id: 'res-status', role: 'status' })));
   marks.clos.forEach((clo, i) => {
     const card = $(`res-review-${i}`);

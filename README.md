@@ -19,8 +19,10 @@ pages are:
   on the same tab replaces the dummy results in that subject's AoL Report, also in that browser only.
   The **Outline review** tab takes an outline from last year's version through reupload, an HTML view
   of what goes into the document, approval, a PDF and sharing with students. The **AoL Report and Assessment Results** tab takes the marks upload and shows
-  the distribution of marks for each CLO, with sliders for the band cut-offs, and prompts and
+  the distribution of marks for each CLO, with sliders for each CLO's band cut-offs in marks, and prompts and
   suggestions for the report's Analysis of Result and Improvement Plan (`data/course_docs/coaching.json`).
+  Download Assessment Results gives the marks sheet back with the slider cut-offs written into its AoL Summary,
+  where each CO's bands are set as a Min and Max in marks.
   The site has no server or sign-in, so all of this stays in one browser and approval isn't proof of
   who approved.
 - **Scheduling**: the **Faculty allocation** solver assigns a professor to each of the year's 117 sections

@@ -41,7 +41,7 @@ COACHING = json.loads((HERE / "coaching.json").read_text())
 HIGHER_ORDER = 4  # Bloom's level from which an item asks students to analyse, evaluate or create
 SAMPLE_YEAR = "2025-26"  # the earlier offering the sample results stand in for
 RESULTS_NOTE = (f"Sample results from the {SAMPLE_YEAR} offering of this course, highlighted in yellow: illustrative marks, not real students'. "
-                "Upload this term's marks sheet on the Marks & results tab of the Course Planner to replace them.")
+                "Upload this term's marks sheet on the AoL Report and Assessment Results tab of the Course Planner to replace them.")
 RESULTS_RULE = ("Exceed Expectation is 75% or more of the marks for that CLO, Meet Expectation is 50% up to 75%, "
                 "and Does not meet Expectation is below 50%.")
 FIRST = 9  # first student row
@@ -241,7 +241,7 @@ def build_summary(wb, code, sample):
     q_first, q_last, total = col(Q_FIRST), col(TOTAL - 1), col(TOTAL)
     total_range = f"{m}${total}${FIRST}:${total}${last}"
 
-    ws.merge_cells("A1:M1")
+    ws.merge_cells("A1:K1")
     title = f"{code} {subject['Subject']}: AoL Summary" + (f" (sample results, {SAMPLE_YEAR})" if sample else "")
     put(ws, "A1", title, bold=True, size=14, align=LEFT).border = Border()
 
@@ -257,54 +257,75 @@ def build_summary(wb, code, sample):
         put(ws, f"A{r}", label, align=LEFT)
         put(ws, f"B{r}", formula, fmt=fmt, align=LEFT)
 
-    # Each CO has its own cut-offs and target (the yellow cells), and its results use them.
-    start = 12
-    merge(ws, f"E{start - 1}:G{start - 1}", "Cut-offs and target for each CO (edit the yellow cells)", bold=True, fill=INPUT)
-    merge(ws, f"H{start - 1}:M{start - 1}", "Results", bold=True, fill=HEAD)
-    ws.row_dimensions[start - 1].height = 32
-    header = ("CO", "Course Learning Outcome", "PLG", "Max Marks", "Exceed at least", "Meet at least", "Target",
-              "Assessed", "Exceed", "Meet", "Does not meet", "% Meet or Exceed", "Result")
-    for n, text in enumerate(header):
-        put(ws, f"{col(1 + n)}{start}", text, bold=True, fill=HEAD)
+    # Each CO's bands in marks: the yellow Meet and Exceed minimums and the target are the inputs, and the results use them.
+    ws.merge_cells("A11:K11")
+    put(ws, "A11", "Cut-offs for each CO, in marks (edit the yellow cells)", bold=True, align=LEFT).border = Border()
+    group = 12
+    for ref, text in (("A", "CO"), ("B", "Course Learning Outcome"), ("C", "PLG"), ("D", "Max Marks"), ("K", "Target")):
+        merge(ws, f"{ref}{group}:{ref}{group + 1}", text, bold=True, fill=HEAD)
+    for first, text in (("E", "Does not meet"), ("G", "Meet"), ("I", "Exceed")):
+        pair = chr(ord(first) + 1)
+        merge(ws, f"{first}{group}:{pair}{group}", text, bold=True, fill=HEAD)
+        put(ws, f"{first}{group + 1}", "Min", bold=True, fill=HEAD)
+        put(ws, f"{pair}{group + 1}", "Max", bold=True, fill=HEAD)
+    start = group + 2
     for i, clo in enumerate(clos):
-        r = start + 1 + i
-        letter = col(CO_COLUMN + i)
-        scores = f"{m}${letter}${FIRST}:${letter}${last}"
+        r = start + i
+        most = sum(item[1] for item in ITEMS[code] if item[2] == f"CO{i + 1}")
         put(ws, f"A{r}", f"CO{i + 1}", bold=True)
         put(ws, f"B{r}", clo["text"], align=LEFT)
         put(ws, f"C{r}", f"PLG {clo['plg']}")
-        put(ws, f"D{r}", f"=SUMIF({m}${q_first}$7:${q_last}$7,A{r},{m}${q_first}$6:${q_last}$6)", fmt="0")
-        put(ws, f"E{r}", EXCEED_AT, fill=INPUT, color=BLUE, fmt="0%")
-        put(ws, f"F{r}", MEET_AT, fill=INPUT, color=BLUE, fmt="0%")
-        put(ws, f"G{r}", TARGET_SHARE, fill=INPUT, color=BLUE, fmt="0%")
-        put(ws, f"H{r}", f"=COUNT({scores})", fmt="0")
-        put(ws, f"I{r}", f'=COUNTIF({scores},">="&ROUND(E{r}*D{r},4))', fmt="0")
-        put(ws, f"J{r}", f'=COUNTIF({scores},">="&ROUND(F{r}*D{r},4))-I{r}', fmt="0")
-        put(ws, f"K{r}", f"=H{r}-I{r}-J{r}", fmt="0")
-        put(ws, f"L{r}", f"=IF(H{r}=0,0,(I{r}+J{r})/H{r})", fmt="0.0%")
-        put(ws, f"M{r}", f'=IF(H{r}=0,"",IF(F{r}>=E{r},"Check cut-offs",IF(L{r}>=G{r},"Target met","Below target")))', bold=True)
+        put(ws, f"D{r}", f"=SUMIF({m}${q_first}$7:${q_last}$7,A{r},{m}${q_first}$6:${q_last}$6)", fmt="General")
+        put(ws, f"E{r}", 0)
+        put(ws, f"F{r}", f'="< "&G{r}')
+        put(ws, f"G{r}", round(MEET_AT * most, 4), fill=INPUT, color=BLUE)
+        put(ws, f"H{r}", f'="< "&I{r}')
+        put(ws, f"I{r}", round(EXCEED_AT * most, 4), fill=INPUT, color=BLUE)
+        put(ws, f"J{r}", f"=D{r}", fmt="General")
+        put(ws, f"K{r}", TARGET_SHARE, fill=INPUT, color=BLUE, fmt="0%")
         ws.row_dimensions[r].height = 54
+
+    # Results for each CO, counted against the cut-offs above.
+    title = start + len(clos) + 1
+    ws.merge_cells(f"A{title}:H{title}")
+    put(ws, f"A{title}", "Results for each CO", bold=True, align=LEFT).border = Border()
+    head = title + 1
+    for n, text in enumerate(("CO", "Result", "Assessed", "Exceed", "Meet", "Does not meet", "% Meet or Exceed", "Target")):
+        put(ws, f"{col(1 + n)}{head}", text, bold=True, fill=HEAD)
+    ws.row_dimensions[head].height = 30
+    for i in range(len(clos)):
+        r, c = head + 1 + i, start + i
+        letter = col(CO_COLUMN + i)
+        scores = f"{m}${letter}${FIRST}:${letter}${last}"
+        put(ws, f"A{r}", f"=A{c}", bold=True)
+        put(ws, f"B{r}", f'=IF(C{r}=0,"",IF(OR(G{c}<=0,G{c}>=I{c},I{c}>D{c}),"Check cut-offs",IF(G{r}>=H{r},"Target met","Below target")))', bold=True)
+        put(ws, f"C{r}", f"=COUNT({scores})", fmt="0")
+        put(ws, f"D{r}", f'=COUNTIF({scores},">="&I{c})', fmt="0")
+        put(ws, f"E{r}", f'=COUNTIF({scores},">="&G{c})-D{r}', fmt="0")
+        put(ws, f"F{r}", f"=C{r}-D{r}-E{r}", fmt="0")
+        put(ws, f"G{r}", f"=IF(C{r}=0,0,(D{r}+E{r})/C{r})", fmt="0.0%")
+        put(ws, f"H{r}", f"=K{c}", fmt="0%")
 
     notes = ["Notes",
              "CO here means Course Learning Outcome: CO1 is CLO1 in the Course Outline and AoL Plan.",
-             "Each CO has its own cut-offs and target in the yellow cells: Exceed at least, Meet at least (below Exceed), and the share of students who should meet or exceed. They are drafts for faculty to check; none comes from the handbook.",
-             "The Course Planner starts from each CO's cut-offs and target set here when this file is uploaded. Its sliders can then change the cut-offs for the report, for one CO or for all.",
+             "Cut-offs are in marks out of each CO's Max Marks. Edit the yellow Min for Meet and for Exceed. Each band runs from its Min up to, but not including, the next band's Min (shown as < under Max), and Exceed runs up to the Max Marks.",
+             "Target is the share of students who should meet or exceed. The cut-offs and target are drafts for faculty to check; none comes from the handbook.",
+             "The Course Planner starts from these cut-offs when this file is uploaded. Its Download Assessment Results button writes the cut-offs set with its sliders back into these yellow cells.",
              "AB means absent. A student with no marks at all for a CO is left out of its Assessed count.",
              "Edit only the blue marks on the Marks Sheet and the yellow cells here; everything else recalculates."]
     if sample:
         notes.insert(1, f"Sample results: all marks in this file are illustrative, standing in for the {SAMPLE_YEAR} offering.")
     for n, text in enumerate(notes):
-        r = start + len(clos) + 2 + n
-        ws.merge_cells(f"A{r}:M{r}")
+        r = head + len(clos) + 2 + n
+        ws.merge_cells(f"A{r}:K{r}")
         cell = ws[f"A{r}"]
         cell.value = text
         cell.font = Font(name=FONT, size=11, bold=n == 0)
         cell.alignment = LEFT
-        ws.row_dimensions[r].height = 15 * (1 + len(text) // 160)
+        ws.row_dimensions[r].height = 15 * (1 + len(text) // 150)
 
-    for letter, width in zip("ABCDEFGHIJKLM", (22, 44, 8, 9, 10, 10, 9, 10, 9, 9, 10, 11, 14)):
+    for letter, width in zip("ABCDEFGHIJK", (22, 44, 9, 9, 9, 9, 9, 9, 9, 9, 9)):
         ws.column_dimensions[letter].width = width
-    ws.row_dimensions[start].height = 30
     ws.page_setup.orientation = "landscape"
     ws.page_setup.fitToWidth, ws.page_setup.fitToHeight = 1, 0
     ws.sheet_properties.pageSetUpPr.fitToPage = True
@@ -316,7 +337,7 @@ def build_help(wb, code, sample):
              "Enter each student's marks in the blue cells on the Marks Sheet tab, and AB if a student was absent.",
              "Each column counts towards the CLO in its Course Outcome row, so CO1 is CLO1. Columns with no Course Outcome aren't counted.",
              "Use the columns for the assessments named in the AoL Plan. Change the labels, marks and Course Outcome row if yours differ.",
-             "Then upload this file on the Marks & results tab of the Course Planner. The Results tab shows the distribution, and the AoL Report for this subject is built from it.",
+             "Then upload this file on the AoL Report and Assessment Results tab of the Course Planner. The Results tab shows the distribution, and the AoL Report for this subject is built from it.",
              "The AoL Summary tab adds up the results with formulas as you enter marks.",
              "The marks for each column and the Bloom's levels are drafts for faculty to check; none comes from the handbook."]
     if code in NOTES:
