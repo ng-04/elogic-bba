@@ -17,7 +17,7 @@ pages are:
   subjects so far. The Templates tab shows the blank templates; an uploaded template is saved in that
   browser only and fills the documents there from `docs/course-docs/fields/`. A marks sheet uploaded
   on the same tab replaces the dummy results in that subject's AoL Report, also in that browser only.
-  The **Outline review** tab takes an outline from last year's version through reupload, an HTML view
+  The **Course Outline review** tab takes an outline through upload, an HTML view
   of what goes into the document, approval, a PDF and sharing with students. The **AoL Report and Assessment Results** tab takes the marks upload and shows
   the distribution of marks for each CLO, with sliders for each CLO's band cut-offs in marks, and prompts and
   suggestions for the report's Analysis of Result and Improvement Plan (`data/course_docs/coaching.json`).
